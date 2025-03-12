@@ -5,9 +5,44 @@ import Link from "next/link"
 import ScrollReveal from "./animations/scroll-reveal"
 import AnimatedButton from "./animations/animated-button"
 import { useLanguage } from "@/contexts/language-context"
+import { useState } from "react"
+import { FormEvent } from "react"
 
 export default function SecondaryCta() {
   const { t, isRTL } = useLanguage()
+  const [email, setEmail] = useState("")
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [message, setMessage] = useState("")
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setStatus('loading')
+    
+    try {
+      const response = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        setStatus('success')
+        setMessage(data.message || 'Thank you for joining our waitlist!')
+        setEmail('')
+      } else {
+        setStatus('error')
+        setMessage(data.message || 'Something went wrong. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      setStatus('error')
+      setMessage('Failed to submit. Please try again later.')
+    }
+  }
 
   return (
     <section className="py-20 bg-blue-600 text-white relative overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
@@ -48,20 +83,38 @@ export default function SecondaryCta() {
           </ScrollReveal>
 
           <ScrollReveal delay={0.4}>
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <AnimatedButton className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-6 text-lg">
-                {t("joinWaitlist")}
-              </AnimatedButton>
-              <Link href="/assessment">
-                <AnimatedButton
-                  variant="outline"
-                  className="border-white text-white hover:bg-blue-700 px-8 py-6 text-lg"
-                >
-                  {t("tryAssessment")}
-                </AnimatedButton>
-              </Link>
-            </div>
+            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row justify-center gap-4 max-w-2xl mx-auto">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={t("emailPlaceholder")}
+                className="flex-grow px-6 py-6 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+              <button 
+                type="submit" 
+                disabled={status === 'loading'}
+                className={`bg-white text-blue-600 hover:bg-gray-100 px-8 py-6 text-lg rounded-md transition duration-200 ease-in-out ${
+                  status === 'loading' ? 'opacity-70 cursor-not-allowed' : ''
+                }`}
+              >
+                {status === 'loading' ? 'Submitting...' : t("joinWaitlist")}
+              </button>
+            </form>
           </ScrollReveal>
+
+          {status === 'success' && (
+            <div className="mt-4 p-2 bg-green-100 text-green-800 rounded-md">
+              {message}
+            </div>
+          )}
+
+          {status === 'error' && (
+            <div className="mt-4 p-2 bg-red-100 text-red-800 rounded-md">
+              {message}
+            </div>
+          )}
         </div>
       </div>
     </section>
