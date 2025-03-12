@@ -1,18 +1,27 @@
 "use client"
 
 import type React from "react"
+import dynamic from 'next/dynamic'
 
 import { Users, Award, BookOpen, Clock } from "lucide-react"
 import { motion } from "framer-motion"
+import { useLanguage } from "@/contexts/language-context"
+
+// Create a client-only version of the chart component
+const ClientOnlySkillDistribution = dynamic(() => Promise.resolve(SkillDistributionChart), {
+  ssr: false
+})
 
 export default function DashboardMockup() {
+  const { t, isRTL, language } = useLanguage()
+
   return (
-    <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+    <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200" dir={isRTL ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="bg-blue-600 text-white p-4 flex justify-between items-center">
         <div>
-          <h3 className="font-bold text-lg">Skills Dashboard</h3>
-          <p className="text-blue-100 text-sm">Welcome back, Alex! Here's your team's progress</p>
+          <h3 className="font-bold text-lg">{t("dashboard")}</h3>
+          <p className="text-blue-100 text-sm">{t("welcomeBack")}</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="bg-blue-500 hover:bg-blue-700 p-2 rounded-full cursor-pointer">
@@ -32,22 +41,22 @@ export default function DashboardMockup() {
         {/* Stats row */}
         <div className="grid grid-cols-4 gap-4 mb-6">
           {[
-            { icon: <Users className="h-5 w-5 text-blue-600" />, label: "Team Members", value: "24", change: "+3" },
+            { icon: <Users className="h-5 w-5 text-blue-600" />, label: t("teamMembers"), value: "24", change: "+3" },
             {
               icon: <Award className="h-5 w-5 text-green-600" />,
-              label: "Skills Acquired",
+              label: t("skillsAcquired"),
               value: "187",
               change: "+12",
             },
             {
               icon: <BookOpen className="h-5 w-5 text-purple-600" />,
-              label: "Courses Completed",
+              label: t("coursesCompleted"),
               value: "42",
               change: "+5",
             },
             {
               icon: <Clock className="h-5 w-5 text-orange-600" />,
-              label: "Learning Hours",
+              label: t("learningHours"),
               value: "368",
               change: "+28",
             },
@@ -64,7 +73,9 @@ export default function DashboardMockup() {
                 </div>
                 <div className="p-2 rounded-full bg-white">{stat.icon}</div>
               </div>
-              <div className="text-xs text-green-600 mt-1">{stat.change} this month</div>
+              <div className="text-xs text-green-600 mt-1">
+                {stat.change} {t("thisMonth")}
+              </div>
             </motion.div>
           ))}
         </div>
@@ -73,7 +84,7 @@ export default function DashboardMockup() {
         <div className="grid grid-cols-2 gap-6 mb-6">
           <div className="bg-white p-4 rounded-lg border border-gray-200">
             <div className="flex justify-between items-center mb-4">
-              <h4 className="font-medium">Skills Progress</h4>
+              <h4 className="font-medium">{t("skillsProgress")}</h4>
               <select className="text-xs border rounded p-1">
                 <option>Last 30 days</option>
                 <option>Last 90 days</option>
@@ -84,73 +95,74 @@ export default function DashboardMockup() {
           </div>
           <div className="bg-white p-4 rounded-lg border border-gray-200">
             <div className="flex justify-between items-center mb-4">
-              <h4 className="font-medium">Skill Distribution</h4>
+              <h4 className="font-medium">{t("skillDistribution")}</h4>
               <select className="text-xs border rounded p-1">
                 <option>By category</option>
                 <option>By level</option>
                 <option>By team</option>
               </select>
             </div>
-            <SkillDistributionChart />
+            <ClientOnlySkillDistribution isRTL={isRTL} />
           </div>
         </div>
 
         {/* Team skills table */}
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex justify-between items-center mb-4">
-            <h4 className="font-medium">Team Skills Overview</h4>
-            <button className="text-xs text-blue-600 hover:text-blue-800">View all</button>
+            <h4 className="font-medium">{t("teamSkillsOverview")}</h4>
+            <button className="text-xs text-blue-600 hover:text-blue-800">{t("viewAll")}</button>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
                 <tr>
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Team Member
+                    {language === "ar" ? "عضو الفريق" : "Team Member"}
                   </th>
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Role
+                    {language === "ar" ? "الدور" : "Role"}
                   </th>
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Top Skills
+                    {language === "ar" ? "أهم المهارات" : "Top Skills"}
                   </th>
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Progress
+                    {language === "ar" ? "التقدم" : "Progress"}
                   </th>
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    {language === "ar" ? "الحالة" : "Status"}
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
                 {[
                   {
-                    name: "Emma Thompson",
-                    role: "Product Manager",
-                    skills: ["Leadership", "Agile", "UX"],
+                    name: language === "ar" ? "إيما طومسون" : "Emma Thompson",
+                    role: language === "ar" ? "مدير المنتج" : "Product Manager",
+                    skills: language === "ar" ? ["القيادة", "أجايل", "تجربة المستخدم"] : ["Leadership", "Agile", "UX"],
                     progress: 78,
-                    status: "On track",
+                    status: t("onTrack"),
                   },
                   {
-                    name: "James Wilson",
-                    role: "Frontend Developer",
-                    skills: ["React", "TypeScript", "UI/UX"],
+                    name: language === "ar" ? "جيمس ويلسون" : "James Wilson",
+                    role: language === "ar" ? "مطور واجهة أمامية" : "Frontend Developer",
+                    skills:
+                      language === "ar" ? ["رياكت", "تايب سكريبت", "واجهة المستخدم"] : ["React", "TypeScript", "UI/UX"],
                     progress: 92,
-                    status: "Ahead",
+                    status: t("ahead"),
                   },
                   {
-                    name: "Sophia Chen",
-                    role: "Data Scientist",
-                    skills: ["Python", "ML", "Statistics"],
+                    name: language === "ar" ? "صوفيا تشين" : "Sophia Chen",
+                    role: language === "ar" ? "عالم بيانات" : "Data Scientist",
+                    skills: language === "ar" ? ["بايثون", "تعلم آلي", "إحصاء"] : ["Python", "ML", "Statistics"],
                     progress: 65,
-                    status: "On track",
+                    status: t("onTrack"),
                   },
                   {
-                    name: "Michael Brown",
-                    role: "DevOps Engineer",
-                    skills: ["AWS", "Docker", "CI/CD"],
+                    name: language === "ar" ? "مايكل براون" : "Michael Brown",
+                    role: language === "ar" ? "مهندس ديف أوبس" : "DevOps Engineer",
+                    skills: language === "ar" ? ["AWS", "دوكر", "CI/CD"] : ["AWS", "Docker", "CI/CD"],
                     progress: 45,
-                    status: "Behind",
+                    status: t("behind"),
                   },
                 ].map((person, i) => (
                   <tr key={i}>
@@ -196,9 +208,9 @@ export default function DashboardMockup() {
                     <td className="px-3 py-2 whitespace-nowrap">
                       <span
                         className={`px-2 py-1 rounded text-xs ${
-                          person.status === "Ahead"
+                          person.status === t("ahead")
                             ? "bg-green-100 text-green-800"
-                            : person.status === "On track"
+                            : person.status === t("onTrack")
                               ? "bg-blue-100 text-blue-800"
                               : "bg-red-100 text-red-800"
                         }`}
@@ -274,38 +286,26 @@ function SkillsProgressChart() {
   )
 }
 
-function SkillDistributionChart() {
+function SkillDistributionChart({ isRTL }: { isRTL: boolean }) {
   // This is a simplified pie chart representation
   const skills = [
-    { name: "Technical", percentage: 40, color: "bg-blue-500" },
-    { name: "Leadership", percentage: 25, color: "bg-green-500" },
-    { name: "Communication", percentage: 20, color: "bg-purple-500" },
-    { name: "Other", percentage: 15, color: "bg-yellow-500" },
+    { name: isRTL ? "تقني" : "Technical", percentage: 40, color: "bg-blue-500" },
+    { name: isRTL ? "قيادة" : "Leadership", percentage: 25, color: "bg-green-500" },
+    { name: isRTL ? "تواصل" : "Communication", percentage: 20, color: "bg-purple-500" },
+    { name: isRTL ? "أخرى" : "Other", percentage: 15, color: "bg-yellow-500" },
   ]
-
-  // Helper function to ensure consistent precision
-  const formatCoordinate = (value: number) => {
-    return Number(value.toFixed(4));
-  }
 
   return (
     <div className="flex items-center justify-between">
       <div className="w-32 h-32 rounded-full border-8 border-gray-100 relative">
         {skills.map((skill, i) => {
           const prevSkills = skills.slice(0, i).reduce((sum, s) => sum + s.percentage, 0)
-          
-          // Pre-calculate coordinates with consistent precision
-          const x1 = formatCoordinate(50 + 50 * Math.cos((2 * Math.PI * prevSkills) / 100 - Math.PI / 2));
-          const y1 = formatCoordinate(50 + 50 * Math.sin((2 * Math.PI * prevSkills) / 100 - Math.PI / 2));
-          const x2 = formatCoordinate(50 + 50 * Math.cos((2 * Math.PI * (prevSkills + skill.percentage)) / 100 - Math.PI / 2));
-          const y2 = formatCoordinate(50 + 50 * Math.sin((2 * Math.PI * (prevSkills + skill.percentage)) / 100 - Math.PI / 2));
-          
           return (
             <div
               key={i}
               className={`absolute inset-0 ${skill.color}`}
               style={{
-                clipPath: `polygon(50% 50%, ${x1}% ${y1}%, ${x2}% ${y2}%)`,
+                clipPath: `polygon(50% 50%, ${50 + 50 * Math.cos((2 * Math.PI * prevSkills) / 100 - Math.PI / 2)}% ${50 + 50 * Math.sin((2 * Math.PI * prevSkills) / 100 - Math.PI / 2)}%, ${50 + 50 * Math.cos((2 * Math.PI * (prevSkills + skill.percentage)) / 100 - Math.PI / 2)}% ${50 + 50 * Math.sin((2 * Math.PI * (prevSkills + skill.percentage)) / 100 - Math.PI / 2)}%)`,
               }}
             ></div>
           )

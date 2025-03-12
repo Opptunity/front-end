@@ -5,62 +5,58 @@ import { motion } from "framer-motion"
 import { Check } from "lucide-react"
 import ScrollReveal from "./animations/scroll-reveal"
 import AnimatedButton from "./animations/animated-button"
+import { useLanguage } from "@/contexts/language-context"
 
 export default function PricingCta() {
   const [isAnnual, setIsAnnual] = useState(true)
+  const { t } = useLanguage()
 
   const plans = [
     {
-      name: "Team",
-      description: "Perfect for small teams getting started with upskilling",
+      name: t("teamPlan"),
+      description: t("teamDesc"),
       price: isAnnual ? 299 : 349,
-      period: "per month",
-      discount: isAnnual ? "Save 15%" : null,
-      features: [
-        "Up to 25 team members",
-        "AI skill mapping",
-        "Basic analytics",
-        "Standard content library",
-        "Email support",
-      ],
-      cta: "Join the Waitlist",
+      period: t("perMonth"),
+      discount: isAnnual ? t("savePercent") : null,
+      features: [t("teamMembers25"), t("aiSkillMapping"), t("basicAnalytics"), t("standardContent"), t("emailSupport")],
+      cta: t("joinWaitlist"),
       popular: false,
     },
     {
-      name: "Business",
-      description: "Ideal for growing organizations with diverse learning needs",
+      name: t("businessPlan"),
+      description: t("businessDesc"),
       price: isAnnual ? 699 : 799,
-      period: "per month",
-      discount: isAnnual ? "Save 15%" : null,
+      period: t("perMonth"),
+      discount: isAnnual ? t("savePercent") : null,
       features: [
-        "Up to 100 team members",
-        "Advanced skill mapping",
-        "Comprehensive analytics",
-        "Full content library",
-        "AI mentorship",
-        "Custom learning paths",
-        "Priority support",
+        t("teamMembers100"),
+        t("advancedSkillMapping"),
+        t("comprehensiveAnalytics"),
+        t("fullContent"),
+        t("aiMentorshipFeature"),
+        t("customLearning"),
+        t("prioritySupport"),
       ],
-      cta: "Join the Waitlist",
+      cta: t("joinWaitlist"),
       popular: true,
     },
     {
-      name: "Enterprise",
-      description: "Custom solution for large organizations",
-      price: "Custom",
+      name: t("enterprisePlan"),
+      description: t("enterpriseDesc"),
+      price: t("custom"),
       period: "",
       discount: null,
       features: [
-        "Unlimited team members",
-        "Advanced skill mapping",
-        "Custom analytics & reporting",
-        "Custom content integration",
-        "Advanced AI mentorship",
-        "API access",
-        "Dedicated account manager",
-        "SSO & advanced security",
+        t("teamMembersUnlimited"),
+        t("advancedSkillMapping"),
+        t("customAnalytics"),
+        t("customContent"),
+        t("advancedAiMentorship"),
+        t("apiAccess"),
+        t("dedicatedManager"),
+        t("ssoSecurity"),
       ],
-      cta: "Join the Waitlist",
+      cta: t("joinWaitlist"),
       popular: false,
     },
   ]
@@ -70,13 +66,13 @@ export default function PricingCta() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <ScrollReveal>
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Simple, Transparent Pricing</h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Choose the plan that's right for your organization's upskilling needs.
-            </p>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">{t("pricingTitle")}</h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">{t("pricingSubtitle")}</p>
 
             <div className="flex items-center justify-center mt-8">
-              <span className={`mr-3 ${isAnnual ? "text-gray-900 font-medium" : "text-gray-500"}`}>Annual Billing</span>
+              <span className={`mr-3 ${isAnnual ? "text-gray-900 font-medium" : "text-gray-500"}`}>
+                {t("annualBilling")}
+              </span>
               <button
                 onClick={() => setIsAnnual(!isAnnual)}
                 className="relative inline-flex h-6 w-11 items-center rounded-full"
@@ -94,7 +90,7 @@ export default function PricingCta() {
                 />
               </button>
               <span className={`ml-3 ${!isAnnual ? "text-gray-900 font-medium" : "text-gray-500"}`}>
-                Monthly Billing
+                {t("monthlyBilling")}
               </span>
             </div>
           </div>
@@ -110,11 +106,9 @@ export default function PricingCta() {
                 whileHover={{ y: -10 }}
                 transition={{ duration: 0.3 }}
               >
-                {plan.popular && (
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-blue-600 text-white px-4 py-1 rounded-full text-sm font-medium">
-                    Most Popular
-                  </div>
-                )}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-blue-600 text-white px-4 py-1 rounded-full text-sm font-medium">
+                  {t("mostPopular")}
+                </div>
 
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2">{plan.name}</h3>

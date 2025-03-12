@@ -4,35 +4,32 @@ import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { ChevronDown } from "lucide-react"
 import ScrollReveal from "./animations/scroll-reveal"
+import { useLanguage } from "@/contexts/language-context"
 
 export default function FaqSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0)
+  const { t } = useLanguage()
 
   const faqs = [
     {
-      question: "How is user data protected?",
-      answer:
-        "We take data security seriously. All data is encrypted both in transit and at rest using industry-standard protocols. We are GDPR compliant and offer SOC 2 compliance for enterprise customers. Your organization maintains full ownership of all data, and we provide comprehensive data export options.",
+      question: t("dataProtection"),
+      answer: t("dataProtectionAnswer"),
     },
     {
-      question: "What if my team doesn't have an existing LMS?",
-      answer:
-        "Our platform works as a standalone solution, so you don't need an existing Learning Management System. We provide all the tools necessary for skill mapping, content delivery, and progress tracking in one integrated platform. If you do have an existing LMS, we offer integration options to work alongside your current systems.",
+      question: t("existingLms"),
+      answer: t("existingLmsAnswer"),
     },
     {
-      question: "Can I integrate with other HR systems?",
-      answer:
-        "Yes, we offer robust API integrations with popular HR systems including Workday, BambooHR, SAP SuccessFactors, and more. Our team can help set up custom integrations for enterprise customers to ensure seamless data flow between systems.",
+      question: t("hrIntegration"),
+      answer: t("hrIntegrationAnswer"),
     },
     {
-      question: "Is there support for multi-lingual content?",
-      answer:
-        "Absolutely. Our platform supports content in over 30 languages, and our AI mentorship feature can communicate in multiple languages. We can also help translate custom content for global teams, ensuring consistent learning experiences across your organization regardless of location.",
+      question: t("multiLingual"),
+      answer: t("multiLingualAnswer"),
     },
     {
-      question: "How long does implementation typically take?",
-      answer:
-        "For small to medium teams, you can be up and running in as little as 48 hours. Enterprise implementations with custom integrations typically take 2-4 weeks. Our customer success team provides dedicated support throughout the onboarding process to ensure a smooth transition.",
+      question: t("implementation"),
+      answer: t("implementationAnswer"),
     },
   ]
 
@@ -44,7 +41,7 @@ export default function FaqSection() {
     <section id="faq" className="py-20 bg-gray-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <ScrollReveal>
-          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-16">Frequently Asked Questions</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-16">{t("faqTitle")}</h2>
         </ScrollReveal>
 
         <div className="max-w-3xl mx-auto">

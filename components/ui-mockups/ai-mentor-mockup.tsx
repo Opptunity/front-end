@@ -1,13 +1,15 @@
 "use client"
-
-import { useState } from "react"
 import { Send, Paperclip, Mic, ThumbsUp, ThumbsDown, MoreHorizontal, ChevronRight, BookOpen } from "lucide-react"
+import { useLanguage } from "@/contexts/language-context"
 
 export default function AiMentorMockup() {
-  const [inputValue, setInputValue] = useState("")
+  const { t, isRTL, language } = useLanguage()
 
   return (
-    <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 h-[500px] flex flex-col">
+    <div
+      className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 h-[500px] flex flex-col"
+      dir={isRTL ? "rtl" : "ltr"}
+    >
       {/* Header */}
       <div className="bg-blue-600 text-white p-4 flex justify-between items-center">
         <div className="flex items-center gap-3">
@@ -15,8 +17,10 @@ export default function AiMentorMockup() {
             <span className="text-xl font-bold">AI</span>
           </div>
           <div>
-            <h3 className="font-bold">AI Mentor</h3>
-            <p className="text-blue-100 text-xs">Always available to help</p>
+            <h3 className="font-bold">{language === "ar" ? "مرشد الذكاء الاصطناعي" : "AI Mentor"}</h3>
+            <p className="text-blue-100 text-xs">
+              {language === "ar" ? "متاح دائمًا للمساعدة" : "Always available to help"}
+            </p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -33,10 +37,7 @@ export default function AiMentorMockup() {
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 bg-gray-50">
         {/* System message */}
         <div className="bg-blue-50 text-blue-800 p-3 rounded-lg text-sm border border-blue-100 max-w-[85%]">
-          <p>
-            👋 Hi Alex! I'm your AI mentor. I can help you with skill development, answer questions, and provide
-            personalized guidance. What would you like to work on today?
-          </p>
+          <p>{t("mentorGreeting")}</p>
         </div>
 
         {/* AI message */}
@@ -45,13 +46,17 @@ export default function AiMentorMockup() {
             AI
           </div>
           <div className="bg-white p-3 rounded-lg shadow-sm max-w-[75%]">
-            <p className="mb-2">Based on your recent progress, here are some recommended focus areas:</p>
+            <p className="mb-2">{t("mentorRecommendation")}</p>
             <ul className="list-disc pl-5 space-y-1 mb-2">
-              <li>Advanced React patterns</li>
-              <li>State management with Redux</li>
-              <li>Performance optimization</li>
+              <li>{language === "ar" ? "أنماط React المتقدمة" : "Advanced React patterns"}</li>
+              <li>{language === "ar" ? "إدارة الحالة مع Redux" : "State management with Redux"}</li>
+              <li>{language === "ar" ? "تحسين الأداء" : "Performance optimization"}</li>
             </ul>
-            <p>Would you like me to create a learning path for any of these topics?</p>
+            <p>
+              {language === "ar"
+                ? "هل ترغب في إنشاء مسار تعليمي لأي من هذه المواضيع؟"
+                : "Would you like me to create a learning path for any of these topics?"}
+            </p>
           </div>
         </div>
 
@@ -59,8 +64,9 @@ export default function AiMentorMockup() {
         <div className="flex gap-2 justify-end">
           <div className="bg-blue-600 text-white p-3 rounded-lg max-w-[75%]">
             <p>
-              I'd like to learn more about performance optimization in React. What are the key concepts I should focus
-              on?
+              {language === "ar"
+                ? "أود معرفة المزيد عن تحسين الأداء في React. ما هي المفاهيم الرئيسية التي يجب أن أركز عليها؟"
+                : "I'd like to learn more about performance optimization in React. What are the key concepts I should focus on?"}
             </p>
           </div>
           <div className="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center">AJ</div>
@@ -73,18 +79,23 @@ export default function AiMentorMockup() {
           </div>
           <div className="bg-white p-3 rounded-lg shadow-sm max-w-[75%]">
             <p className="mb-3">
-              Great choice! React performance optimization is crucial for building responsive applications. Here are the
-              key concepts to focus on:
+              {language === "ar"
+                ? "اختيار رائع! تحسين أداء React أمر بالغ الأهمية لبناء تطبيقات سريعة الاستجابة. إليك المفاهيم الرئيسية التي يجب التركيز عليها:"
+                : "Great choice! React performance optimization is crucial for building responsive applications. Here are the key concepts to focus on:"}
             </p>
 
-            <h4 className="font-medium mb-1">1. Memoization with React.memo</h4>
+            <h4 className="font-medium mb-1">
+              {language === "ar" ? "1. التخزين المؤقت مع React.memo" : "1. Memoization with React.memo"}
+            </h4>
             <div className="bg-gray-800 text-gray-200 p-2 rounded-md font-mono text-xs mb-3 overflow-x-auto">
               <pre>{`const MemoizedComponent = React.memo(function MyComponent(props) {
   // Your component logic
 });`}</pre>
             </div>
 
-            <h4 className="font-medium mb-1">2. useCallback for function memoization</h4>
+            <h4 className="font-medium mb-1">
+              {language === "ar" ? "2. useCallback لتخزين الدوال مؤقتًا" : "2. useCallback for function memoization"}
+            </h4>
             <div className="bg-gray-800 text-gray-200 p-2 rounded-md font-mono text-xs mb-3 overflow-x-auto">
               <pre>{`const memoizedCallback = useCallback(
   () => {
@@ -94,7 +105,9 @@ export default function AiMentorMockup() {
 );`}</pre>
             </div>
 
-            <h4 className="font-medium mb-1">3. useMemo for expensive calculations</h4>
+            <h4 className="font-medium mb-1">
+              {language === "ar" ? "3. useMemo للحسابات المكلفة" : "3. useMemo for expensive calculations"}
+            </h4>
             <div className="bg-gray-800 text-gray-200 p-2 rounded-md font-mono text-xs mb-3 overflow-x-auto">
               <pre>{`const memoizedValue = useMemo(
   () => computeExpensiveValue(a, b),
@@ -102,14 +115,18 @@ export default function AiMentorMockup() {
 );`}</pre>
             </div>
 
-            <p>Would you like me to create a practical exercise to help you apply these concepts?</p>
+            <p>
+              {language === "ar"
+                ? "هل ترغب في إنشاء تمرين عملي لمساعدتك في تطبيق هذه المفاهيم؟"
+                : "Would you like me to create a practical exercise to help you apply these concepts?"}
+            </p>
 
             <div className="flex gap-2 mt-3">
               <button className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded-full transition-colors">
-                Yes, create an exercise
+                {language === "ar" ? "نعم، أنشئ تمرينًا" : "Yes, create an exercise"}
               </button>
               <button className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded-full transition-colors">
-                Show me examples
+                {language === "ar" ? "أرني أمثلة" : "Show me examples"}
               </button>
             </div>
 
@@ -130,13 +147,13 @@ export default function AiMentorMockup() {
 
       {/* Suggested questions */}
       <div className="p-3 border-t border-gray-200">
-        <p className="text-xs text-gray-500 mb-2">Suggested questions:</p>
+        <p className="text-xs text-gray-500 mb-2">{t("suggestedQuestions")}</p>
         <div className="flex gap-2 overflow-x-auto pb-2">
           {[
-            "How do I profile React performance?",
-            "What tools can I use for debugging?",
-            "When should I use React.memo?",
-            "Can you explain React Fiber?",
+            language === "ar" ? "كيف أقيس أداء React؟" : "How do I profile React performance?",
+            language === "ar" ? "ما هي الأدوات التي يمكنني استخدامها للتصحيح؟" : "What tools can I use for debugging?",
+            language === "ar" ? "متى يجب استخدام React.memo؟" : "When should I use React.memo?",
+            language === "ar" ? "هل يمكنك شرح React Fiber؟" : "Can you explain React Fiber?",
           ].map((question, i) => (
             <button
               key={i}
@@ -157,9 +174,7 @@ export default function AiMentorMockup() {
           </button>
           <input
             type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Ask your AI mentor a question..."
+            placeholder={t("askQuestion")}
             className="flex-1 bg-transparent border-none outline-none text-sm"
           />
           <button className="p-1.5 text-gray-500 hover:text-gray-700 rounded-full">
