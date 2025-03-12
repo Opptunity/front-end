@@ -30,7 +30,7 @@ export default function Header() {
         <div className="flex h-20 items-center justify-between">
           <motion.div className="flex items-center" whileHover={{ scale: 1.05 }} transition={{ duration: 0.2 }}>
             <Link href="/" className="flex items-center">
-              <span className="text-2xl font-bold text-blue-600">{isRTL ? "أوبتيونيتي" : "Opptunity"}</span>
+              <span className="text-2xl font-bold text-blue-600">Opptunity</span>
             </Link>
           </motion.div>
 

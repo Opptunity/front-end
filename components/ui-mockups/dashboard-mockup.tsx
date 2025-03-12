@@ -1,16 +1,10 @@
 "use client"
 
 import type React from "react"
-import dynamic from 'next/dynamic'
 
 import { Users, Award, BookOpen, Clock } from "lucide-react"
 import { motion } from "framer-motion"
 import { useLanguage } from "@/contexts/language-context"
-
-// Create a client-only version of the chart component
-const ClientOnlySkillDistribution = dynamic(() => Promise.resolve(SkillDistributionChart), {
-  ssr: false
-})
 
 export default function DashboardMockup() {
   const { t, isRTL, language } = useLanguage()
@@ -102,7 +96,7 @@ export default function DashboardMockup() {
                 <option>By team</option>
               </select>
             </div>
-            <ClientOnlySkillDistribution isRTL={isRTL} />
+            <SkillDistributionChart isRTL={isRTL} />
           </div>
         </div>
 
@@ -305,7 +299,7 @@ function SkillDistributionChart({ isRTL }: { isRTL: boolean }) {
               key={i}
               className={`absolute inset-0 ${skill.color}`}
               style={{
-                clipPath: `polygon(50% 50%, ${50 + 50 * Math.cos((2 * Math.PI * prevSkills) / 100 - Math.PI / 2)}% ${50 + 50 * Math.sin((2 * Math.PI * prevSkills) / 100 - Math.PI / 2)}%, ${50 + 50 * Math.cos((2 * Math.PI * (prevSkills + skill.percentage)) / 100 - Math.PI / 2)}% ${50 + 50 * Math.sin((2 * Math.PI * (prevSkills + skill.percentage)) / 100 - Math.PI / 2)}%)`,
+                clipPath: `polygon(50% 50%, ${(50 + 50 * Math.cos((2 * Math.PI * prevSkills) / 100 - Math.PI / 2)).toFixed(4)}% ${(50 + 50 * Math.sin((2 * Math.PI * prevSkills) / 100 - Math.PI / 2)).toFixed(4)}%, ${(50 + 50 * Math.cos((2 * Math.PI * (prevSkills + skill.percentage)) / 100 - Math.PI / 2)).toFixed(4)}% ${(50 + 50 * Math.sin((2 * Math.PI * (prevSkills + skill.percentage)) / 100 - Math.PI / 2)).toFixed(4)}%)`,
               }}
             ></div>
           )

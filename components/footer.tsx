@@ -64,7 +64,7 @@ export default function Footer() {
           <div className="lg:col-span-2">
             <motion.div whileHover={{ scale: 1.05, x: 5 }} transition={{ duration: 0.2 }} className="mb-4">
               <Link href="/" className="text-2xl font-bold text-white">
-                {isRTL ? "أوبتيونيتي" : "Opptunity"}
+                Opptunity
               </Link>
             </motion.div>
             <p className="mb-6 text-gray-400 max-w-md">{t("platformDescription")}</p>
