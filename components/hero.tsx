@@ -1,6 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
+import Link from "next/link"
 import AnimatedButton from "./animations/animated-button"
 import DashboardMockup from "./ui-mockups/dashboard-mockup"
 import { useLanguage } from "@/contexts/language-context"
@@ -67,12 +68,14 @@ export default function Hero() {
             <AnimatedButton className="bg-blue-600 text-white hover:bg-blue-700 px-8 py-6 text-lg">
               {t("joinWaitlist")}
             </AnimatedButton>
-            <AnimatedButton
-              variant="outline"
-              className="border-blue-600 text-blue-600 hover:bg-blue-50 px-8 py-6 text-lg"
-            >
-              {t("learnMore")}
-            </AnimatedButton>
+            <Link href="/assessment">
+              <AnimatedButton
+                variant="outline"
+                className="border-blue-600 text-blue-600 hover:bg-blue-50 px-8 py-6 text-lg"
+              >
+                {t("tryAssessment")}
+              </AnimatedButton>
+            </Link>
           </motion.div>
         </div>
 
