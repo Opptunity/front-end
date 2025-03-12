@@ -1,6 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
+import Link from "next/link"
 import ScrollReveal from "./animations/scroll-reveal"
 import AnimatedButton from "./animations/animated-button"
 import { useLanguage } from "@/contexts/language-context"
@@ -51,9 +52,14 @@ export default function SecondaryCta() {
               <AnimatedButton className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-6 text-lg">
                 {t("joinWaitlist")}
               </AnimatedButton>
-              <AnimatedButton variant="outline" className="border-white text-white hover:bg-blue-700 px-8 py-6 text-lg">
-                {t("learnMore")}
-              </AnimatedButton>
+              <Link href="/assessment">
+                <AnimatedButton
+                  variant="outline"
+                  className="border-white text-white hover:bg-blue-700 px-8 py-6 text-lg"
+                >
+                  {t("tryAssessment")}
+                </AnimatedButton>
+              </Link>
             </div>
           </ScrollReveal>
         </div>

@@ -2,13 +2,6 @@
 
 import { motion } from "framer-motion"
 import { BarChart2, TrendingUp, Users, Award, Download, Calendar, Filter, ChevronDown } from "lucide-react"
-import React from "react"
-import dynamic from 'next/dynamic'
-
-// Create a client-only version of the chart component
-const ClientOnlyROIChart = dynamic(() => Promise.resolve(ROIByDepartmentChart), {
-  ssr: false
-})
 
 export default function AnalyticsMockup() {
   return (
@@ -125,7 +118,7 @@ export default function AnalyticsMockup() {
                 <option>By innovation</option>
               </select>
             </div>
-            <ClientOnlyROIChart />
+            <ROIByDepartmentChart />
           </div>
         </div>
       </div>
@@ -261,7 +254,7 @@ function ROIByDepartmentChart() {
               key={i}
               className={`absolute inset-0 ${dept.color}`}
               style={{
-                clipPath: `polygon(50% 50%, ${50 + 50 * Math.cos((2 * Math.PI * prevDepts) / 100 - Math.PI / 2)}% ${50 + 50 * Math.sin((2 * Math.PI * prevDepts) / 100 - Math.PI / 2)}%, ${50 + 50 * Math.cos((2 * Math.PI * (prevDepts + dept.percentage)) / 100 - Math.PI / 2)}% ${50 + 50 * Math.sin((2 * Math.PI * (prevDepts + dept.percentage)) / 100 - Math.PI / 2)}%)`,
+                clipPath: `polygon(50% 50%, ${(50 + 50 * Math.cos((2 * Math.PI * prevDepts) / 100 - Math.PI / 2)).toFixed(4)}% ${(50 + 50 * Math.sin((2 * Math.PI * prevDepts) / 100 - Math.PI / 2)).toFixed(4)}%, ${(50 + 50 * Math.cos((2 * Math.PI * (prevDepts + dept.percentage)) / 100 - Math.PI / 2)).toFixed(4)}% ${(50 + 50 * Math.sin((2 * Math.PI * (prevDepts + dept.percentage)) / 100 - Math.PI / 2)).toFixed(4)}%)`,
               }}
             ></div>
           )
