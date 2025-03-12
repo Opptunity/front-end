@@ -3,8 +3,11 @@
 import { motion } from "framer-motion"
 import AnimatedButton from "./animations/animated-button"
 import DashboardMockup from "./ui-mockups/dashboard-mockup"
+import { useLanguage } from "@/contexts/language-context"
 
 export default function Hero() {
+  const { t, isRTL } = useLanguage()
+
   return (
     <section className="py-20 md:py-28 bg-gradient-to-b from-white to-blue-50 overflow-hidden relative">
       {/* Background elements */}
@@ -40,8 +43,9 @@ export default function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
+            dir={isRTL ? "rtl" : "ltr"}
           >
-            Empower Your Team with Next-Generation Upskilling
+            {t("heroTitle")}
           </motion.h1>
 
           <motion.p
@@ -49,8 +53,9 @@ export default function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
+            dir={isRTL ? "rtl" : "ltr"}
           >
-            Accelerate learning, spark innovation, and track ROI—all in one seamless platform.
+            {t("heroSubtitle")}
           </motion.p>
 
           <motion.div
@@ -60,13 +65,13 @@ export default function Hero() {
             transition={{ duration: 0.6, delay: 0.4 }}
           >
             <AnimatedButton className="bg-blue-600 text-white hover:bg-blue-700 px-8 py-6 text-lg">
-              Join the Waitlist
+              {t("joinWaitlist")}
             </AnimatedButton>
             <AnimatedButton
               variant="outline"
               className="border-blue-600 text-blue-600 hover:bg-blue-50 px-8 py-6 text-lg"
             >
-              Learn More
+              {t("learnMore")}
             </AnimatedButton>
           </motion.div>
         </div>

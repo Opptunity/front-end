@@ -2,6 +2,13 @@
 
 import { motion } from "framer-motion"
 import { BarChart2, TrendingUp, Users, Award, Download, Calendar, Filter, ChevronDown } from "lucide-react"
+import React from "react"
+import dynamic from 'next/dynamic'
+
+// Create a client-only version of the chart component
+const ClientOnlyROIChart = dynamic(() => Promise.resolve(ROIByDepartmentChart), {
+  ssr: false
+})
 
 export default function AnalyticsMockup() {
   return (
@@ -118,7 +125,7 @@ export default function AnalyticsMockup() {
                 <option>By innovation</option>
               </select>
             </div>
-            <ROIByDepartmentChart />
+            <ClientOnlyROIChart />
           </div>
         </div>
       </div>
@@ -244,29 +251,17 @@ function ROIByDepartmentChart() {
     { name: "Operations", percentage: 5, color: "bg-red-500" },
   ]
 
-  // Helper function to ensure consistent precision
-  const formatCoordinate = (value: number) => {
-    return Number(value.toFixed(4));
-  }
-
   return (
     <div className="flex items-center justify-between">
       <div className="w-32 h-32 rounded-full border-8 border-gray-100 relative">
         {departments.map((dept, i) => {
           const prevDepts = departments.slice(0, i).reduce((sum, d) => sum + d.percentage, 0)
-          
-          // Pre-calculate coordinates with consistent precision
-          const x1 = formatCoordinate(50 + 50 * Math.cos((2 * Math.PI * prevDepts) / 100 - Math.PI / 2));
-          const y1 = formatCoordinate(50 + 50 * Math.sin((2 * Math.PI * prevDepts) / 100 - Math.PI / 2));
-          const x2 = formatCoordinate(50 + 50 * Math.cos((2 * Math.PI * (prevDepts + dept.percentage)) / 100 - Math.PI / 2));
-          const y2 = formatCoordinate(50 + 50 * Math.sin((2 * Math.PI * (prevDepts + dept.percentage)) / 100 - Math.PI / 2));
-          
           return (
             <div
               key={i}
               className={`absolute inset-0 ${dept.color}`}
               style={{
-                clipPath: `polygon(50% 50%, ${x1}% ${y1}%, ${x2}% ${y2}%)`,
+                clipPath: `polygon(50% 50%, ${50 + 50 * Math.cos((2 * Math.PI * prevDepts) / 100 - Math.PI / 2)}% ${50 + 50 * Math.sin((2 * Math.PI * prevDepts) / 100 - Math.PI / 2)}%, ${50 + 50 * Math.cos((2 * Math.PI * (prevDepts + dept.percentage)) / 100 - Math.PI / 2)}% ${50 + 50 * Math.sin((2 * Math.PI * (prevDepts + dept.percentage)) / 100 - Math.PI / 2)}%)`,
               }}
             ></div>
           )

@@ -7,40 +7,43 @@ import SkillMappingMockup from "./ui-mockups/skill-mapping-mockup"
 import AssessmentMockup from "./ui-mockups/assessment-mockup"
 import AiMentorMockup from "./ui-mockups/ai-mentor-mockup"
 import AnalyticsMockup from "./ui-mockups/analytics-mockup"
+import { useLanguage } from "@/contexts/language-context"
 
 export default function ValueProps() {
+  const { t, isRTL } = useLanguage()
+
   const features = [
     {
       icon: <Brain className="h-10 w-10 text-blue-600" />,
-      title: "Intelligent Skill Mapping",
-      description: "Discover and catalog enterprise-wide skills with structured role-based insights.",
+      title: t("intelligentSkillMapping"),
+      description: t("skillMappingDesc"),
       mockup: <SkillMappingMockup />,
     },
     {
       icon: <Target className="h-10 w-10 text-blue-600" />,
-      title: "Adaptive Assessments",
-      description: "Quick quizzes, coding challenges, and peer assessments that evolve with each user's progress.",
+      title: t("adaptiveAssessments"),
+      description: t("assessmentsDesc"),
       mockup: <AssessmentMockup />,
     },
     {
       icon: <MessageSquare className="h-10 w-10 text-blue-600" />,
-      title: "AI Mentorship",
-      description: "Provide always-on guidance from C-level expertise, powered by a finely tuned conversational AI.",
+      title: t("aiMentorship"),
+      description: t("aiMentorshipDesc"),
       mockup: <AiMentorMockup />,
     },
     {
       icon: <BarChart3 className="h-10 w-10 text-blue-600" />,
-      title: "ROI-Driven Analytics",
-      description: "Track upskilling impact with comprehensive dashboards and data-backed insights.",
+      title: t("roiAnalytics"),
+      description: t("analyticsDesc"),
       mockup: <AnalyticsMockup />,
     },
   ]
 
   return (
-    <section id="value-props" className="py-20 bg-white">
+    <section id="value-props" className="py-20 bg-white" dir={isRTL ? "rtl" : "ltr"}>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <ScrollReveal>
-          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-16">Key Features at a Glance</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-16">{t("keyFeatures")}</h2>
         </ScrollReveal>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">

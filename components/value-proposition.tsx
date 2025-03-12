@@ -4,18 +4,15 @@ import { CheckCircle } from "lucide-react"
 import ScrollReveal from "./animations/scroll-reveal"
 import { motion } from "framer-motion"
 import DashboardMockup from "./ui-mockups/dashboard-mockup"
+import { useLanguage } from "@/contexts/language-context"
 
 export default function ValueProposition() {
-  const organizationBenefits = [
-    "Comprehensive workforce skill mapping and gap analysis",
-    "Optimized company taxonomy aligned with industry standards",
-    "Data-driven insights for strategic talent development",
-    "Reduced hiring costs through internal upskilling initiatives",
-    "Improved employee retention through career growth opportunities",
-  ]
+  const { t, isRTL } = useLanguage()
+
+  const organizationBenefits = [t("benefit1"), t("benefit2"), t("benefit3"), t("benefit4"), t("benefit5")]
 
   const listItemVariants = {
-    hidden: { opacity: 0, x: -20 },
+    hidden: { opacity: 0, x: isRTL ? 20 : -20 },
     visible: (i: number) => ({
       opacity: 1,
       x: 0,
@@ -27,17 +24,14 @@ export default function ValueProposition() {
   }
 
   return (
-    <div className="bg-gray-50 py-16 md:py-24">
+    <div className="bg-gray-50 py-16 md:py-24" dir={isRTL ? "rtl" : "ltr"}>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* For Organizations Section */}
         <section id="for-organizations" className="py-10">
-          <div className="flex flex-col lg:flex-row-reverse items-center">
-            <ScrollReveal className="lg:w-1/2 lg:pl-12 mb-10 lg:mb-0" direction="left">
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">For Organizations</h2>
-              <p className="text-xl text-gray-600 mb-8">
-                Transform your workforce with data-driven insights and strategic talent development aligned with your
-                business objectives.
-              </p>
+          <div className={`flex flex-col lg:flex-row${isRTL ? "" : "-reverse"} items-center`}>
+            <ScrollReveal className="lg:w-1/2 lg:pl-12 mb-10 lg:mb-0" direction={isRTL ? "right" : "left"}>
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">{t("forOrganizations")}</h2>
+              <p className="text-xl text-gray-600 mb-8">{t("orgDesc")}</p>
               <ul className="space-y-4">
                 {organizationBenefits.map((benefit, index) => (
                   <motion.li
@@ -57,7 +51,7 @@ export default function ValueProposition() {
                 ))}
               </ul>
             </ScrollReveal>
-            <ScrollReveal className="lg:w-1/2" direction="right">
+            <ScrollReveal className="lg:w-1/2" direction={isRTL ? "left" : "right"}>
               <motion.div
                 className="relative h-[350px] w-full rounded-xl overflow-hidden shadow-lg"
                 whileHover={{ scale: 1.03 }}

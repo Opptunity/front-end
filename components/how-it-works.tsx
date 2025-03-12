@@ -9,53 +9,55 @@ import SkillMappingMockup from "./ui-mockups/skill-mapping-mockup"
 import LearningPathMockup from "./ui-mockups/learning-path-mockup"
 import AiMentorMockup from "./ui-mockups/ai-mentor-mockup"
 import AnalyticsMockup from "./ui-mockups/analytics-mockup"
+import { useLanguage } from "@/contexts/language-context"
 
 export default function HowItWorks() {
   const [activeStep, setActiveStep] = useState(0)
+  const { t, isRTL } = useLanguage()
 
   const steps = [
     {
       icon: <UserPlus className="h-8 w-8" />,
-      title: "Create Your Account",
-      description: "Quick sign-up with SSO integration for seamless enterprise access.",
+      title: t("createAccount"),
+      description: t("createAccountDesc"),
       color: "bg-blue-500",
       mockup: <DashboardMockup />,
     },
     {
       icon: <LineChart className="h-8 w-8" />,
-      title: "Identify Skills & Gaps",
-      description: "Our AI generates a comprehensive skill map for your organization.",
+      title: t("identifySkills"),
+      description: t("identifySkillsDesc"),
       color: "bg-indigo-500",
       mockup: <SkillMappingMockup />,
     },
     {
       icon: <BookOpen className="h-8 w-8" />,
-      title: "Access Custom Content",
-      description: "Tailored learning pathways based on identified skill gaps.",
+      title: t("accessContent"),
+      description: t("accessContentDesc"),
       color: "bg-purple-500",
       mockup: <LearningPathMockup />,
     },
     {
       icon: <MessageCircle className="h-8 w-8" />,
-      title: "Engage with AI Mentorship",
-      description: "Get personalized guidance and feedback from our AI mentors.",
+      title: t("engageMentor"),
+      description: t("engageMentorDesc"),
       color: "bg-pink-500",
       mockup: <AiMentorMockup />,
     },
     {
       icon: <BarChart className="h-8 w-8" />,
-      title: "Track Growth & ROI",
-      description: "Comprehensive analytics to measure impact and return on investment.",
+      title: t("trackGrowth"),
+      description: t("trackGrowthDesc"),
       color: "bg-red-500",
       mockup: <AnalyticsMockup />,
     },
   ]
 
   return (
-    <section id="how-it-works" className="py-20 bg-white">
+    <section id="how-it-works" className="py-20 bg-white" dir={isRTL ? "rtl" : "ltr"}>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <ScrollReveal>
-          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-16">How It Works</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-16">{t("howItWorksTitle")}</h2>
         </ScrollReveal>
 
         <div className="max-w-5xl mx-auto">
@@ -89,7 +91,7 @@ export default function HowItWorks() {
                 <span
                   className={`mt-2 text-sm font-medium ${index === activeStep ? "text-gray-900" : "text-gray-500"}`}
                 >
-                  Step {index + 1}
+                  {t("step")} {index + 1}
                 </span>
               </motion.button>
             ))}
@@ -134,7 +136,7 @@ export default function HowItWorks() {
                   : "bg-gray-200 text-gray-700 hover:bg-gray-300"
               }`}
             >
-              Previous
+              {t("previous")}
             </button>
             <button
               onClick={() => setActiveStep((prev) => Math.min(steps.length - 1, prev + 1))}
@@ -145,7 +147,7 @@ export default function HowItWorks() {
                   : "bg-blue-600 text-white hover:bg-blue-700"
               }`}
             >
-              Next
+              {t("next")}
             </button>
           </div>
         </div>
