@@ -45,7 +45,7 @@ export default function SecondaryCta() {
   }
 
   return (
-    <section className="py-20 bg-blue-600 text-white relative overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
+    <section id="waitlist-form" className="py-20 bg-blue-600 text-white relative overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
       {/* Animated background elements */}
       <motion.div
         className="absolute top-0 right-0 w-64 h-64 rounded-full bg-blue-500 opacity-20"
@@ -83,7 +83,7 @@ export default function SecondaryCta() {
           </ScrollReveal>
 
           <ScrollReveal delay={0.4}>
-            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row justify-center gap-4 max-w-2xl mx-auto">
+            <form id="email-form" onSubmit={handleSubmit} className="flex flex-col sm:flex-row justify-center gap-4 max-w-2xl mx-auto">
               <input
                 type="email"
                 value={email}

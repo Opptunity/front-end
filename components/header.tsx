@@ -57,7 +57,9 @@ export default function Header() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.4 }}
             >
-              <AnimatedButton className="bg-blue-600 text-white hover:bg-blue-700">{t("joinWaitlist")}</AnimatedButton>
+              <Link href="/#waitlist-form">
+                <AnimatedButton className="bg-blue-600 text-white hover:bg-blue-700">{t("joinWaitlist")}</AnimatedButton>
+              </Link>
             </motion.div>
           </nav>
 
@@ -110,9 +112,11 @@ export default function Header() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: 0.3 }}
               >
-                <AnimatedButton className="w-full bg-blue-600 text-white hover:bg-blue-700">
-                  {t("joinWaitlist")}
-                </AnimatedButton>
+                <Link href="/#waitlist-form" onClick={() => setIsMenuOpen(false)}>
+                  <AnimatedButton className="w-full bg-blue-600 text-white hover:bg-blue-700">
+                    {t("joinWaitlist")}
+                  </AnimatedButton>
+                </Link>
               </motion.div>
             </motion.div>
           )}
