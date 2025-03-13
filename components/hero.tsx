@@ -65,9 +65,11 @@ export default function Hero() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
           >
-            <AnimatedButton className="bg-blue-600 text-white hover:bg-blue-700 px-8 py-6 text-lg">
-              {t("joinWaitlist")}
-            </AnimatedButton>
+            <Link href="#waitlist-form">
+              <AnimatedButton className="bg-blue-600 text-white hover:bg-blue-700 px-8 py-6 text-lg">
+                {t("joinWaitlist")}
+              </AnimatedButton>
+            </Link>
             <Link href="/assessment">
               <AnimatedButton
                 variant="outline"
