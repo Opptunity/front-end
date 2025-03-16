@@ -387,7 +387,11 @@ const translations = {
     companySize201to500: "201-500 employees",
     companySize501to1000: "501-1000 employees",
     companySize1001to5000: "1001-5000 employees",
-    companySizeOver5000: "5001+ employees"
+    companySizeOver5000: "5001+ employees",
+
+    // AI Agent Page
+    aiAgent: "AI Agent",
+    aiAgentDesc: "Interact with our powerful AI assistant",
   },
   ar: {
     // Header
@@ -763,7 +767,11 @@ const translations = {
     companySize201to500: "201-500 موظف",
     companySize501to1000: "501-1000 موظف",
     companySize1001to5000: "1001-5000 موظف",
-    companySizeOver5000: "أكثر من 5000 موظف"
+    companySizeOver5000: "أكثر من 5000 موظف",
+
+    // AI Agent Page
+    aiAgent: "الوكيل الذكي",
+    aiAgentDesc: "تفاعل مع مساعدنا الذكي القوي",
   },
 }
 
