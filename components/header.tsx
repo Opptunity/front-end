@@ -17,6 +17,7 @@ export default function Header() {
     { name: t("howItWorks"), href: "#how-it-works" },
     { name: t("pricing"), href: "#pricing" },
     { name: t("faq"), href: "#faq" },
+    { name: t("aiAgent"), href: "/ai-agent" },
   ]
 
   return (
