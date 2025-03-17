@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { CornerUpRight, BookmarkIcon, ZapIcon, Activity, Bookmark, ChevronRight, Maximize, Sun, Send } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 type QuickPrompt = {
   icon: React.ReactNode
@@ -144,8 +146,103 @@ export default function AIAgentInterface() {
     setIsSidebarOpen(!isSidebarOpen);
   }
 
+  // Custom components for markdown rendering
+  const MarkdownComponents = {
+    // Add custom styling for code blocks
+    code(props: any) {
+      const {children, className, node, ...rest} = props
+      const match = /language-(\w+)/.exec(className || '')
+      return (
+        <code
+          className={`${className} font-mono bg-gray-50 dark:bg-gray-800 rounded px-1.5 py-0.5 text-sm border border-gray-200 break-words whitespace-pre-wrap`}
+          {...rest}
+        >
+          {children}
+        </code>
+      )
+    },
+    // Style code blocks
+    pre(props: any) {
+      const {children, className, node, ...rest} = props
+      return (
+        <pre
+          className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 overflow-x-auto my-4 text-sm border border-gray-200 max-w-full"
+          style={{ maxWidth: 'calc(100vw - 4rem)' }}
+          {...rest}
+        >
+          {children}
+        </pre>
+      )
+    },
+    // Style links
+    a(props: any) {
+      const {children, className, node, ...rest} = props
+      return (
+        <a
+          className="text-blue-500 hover:text-blue-600 underline"
+          target="_blank"
+          rel="noopener noreferrer"
+          {...rest}
+        >
+          {children}
+        </a>
+      )
+    },
+    // Style lists
+    ul(props: any) {
+      const {children, className, node, ...rest} = props
+      return (
+        <ul className="list-disc list-inside my-4 space-y-2" {...rest}>
+          {children}
+        </ul>
+      )
+    },
+    ol(props: any) {
+      const {children, className, node, ...rest} = props
+      return (
+        <ol className="list-decimal list-inside my-4 space-y-2" {...rest}>
+          {children}
+        </ol>
+      )
+    },
+    // Style headings
+    h1(props: any) {
+      const {children, className, node, ...rest} = props
+      return (
+        <h1 className="text-xl font-bold my-4" {...rest}>
+          {children}
+        </h1>
+      )
+    },
+    h2(props: any) {
+      const {children, className, node, ...rest} = props
+      return (
+        <h2 className="text-lg font-bold my-3" {...rest}>
+          {children}
+        </h2>
+      )
+    },
+    h3(props: any) {
+      const {children, className, node, ...rest} = props
+      return (
+        <h3 className="text-base font-bold my-3" {...rest}>
+          {children}
+        </h3>
+      )
+    },
+    // Style paragraphs
+    p(props: any) {
+      const {children, className, node, ...rest} = props
+      return (
+        <p className="my-3 leading-relaxed" {...rest}>
+          {children}
+        </p>
+      )
+    }
+  }
+
   return (
-    <div className="relative flex flex-col md:flex-row h-[calc(100vh-4rem)] md:h-[650px] bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+    <div className="relative flex flex-col md:flex-row h-[calc(100vh-4rem)] md:h-[650px] bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden max-w-[1200px] mx-auto w-full">
       {/* Mobile menu button */}
       <button
         onClick={toggleSidebar}
@@ -155,7 +252,7 @@ export default function AIAgentInterface() {
       </button>
 
       {/* Left sidebar - hidden by default on mobile, shown when isSidebarOpen is true */}
-      <div className={`absolute md:relative w-full md:w-[320px] h-full bg-white border-r border-gray-100 transform transition-transform duration-300 ease-in-out ${
+      <div className={`absolute md:relative w-full md:w-[280px] h-full bg-white border-r border-gray-100 transform transition-transform duration-300 ease-in-out ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
       } md:translate-x-0 z-10`}>
         <div className="p-4 pt-16 md:pt-4">
@@ -227,10 +324,24 @@ export default function AIAgentInterface() {
                 className={`max-w-[85%] p-3 rounded-lg ${
                   message.role === "user"
                     ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-800"
+                    : "bg-gray-50 text-gray-800 border border-gray-200"
                 }`}
+                style={{ maxWidth: 'min(85%, 800px)' }}
               >
-                <p className="whitespace-pre-wrap break-words text-sm md:text-base">{message.content}</p>
+                {message.role === "assistant" ? (
+                  <div className="prose prose-sm max-w-none prose-pre:my-0 prose-p:my-2 prose-headings:my-3">
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={MarkdownComponents}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap break-words text-sm md:text-base">
+                    {message.content}
+                  </p>
+                )}
               </div>
             </div>
           ))}
