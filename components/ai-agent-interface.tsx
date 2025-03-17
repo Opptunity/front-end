@@ -25,6 +25,7 @@ export default function AIAgentInterface() {
     content: "Hi there! 👋 I'm your Opptunity AI Agent. I can help you develop new skills, find personalized learning resources, and plan your career growth. What would you like to focus on today?"
   }])
   const [isLoading, setIsLoading] = useState(false)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
   const quickPrompts: QuickPrompt[] = [
@@ -80,6 +81,7 @@ export default function AIAgentInterface() {
     setInput('');
     setIsLoading(true);
     setIsTyping(true);
+    setIsSidebarOpen(false); // Close sidebar on mobile after sending message
     
     try {
       const response = await fetch('/api/chat', {
@@ -137,11 +139,26 @@ export default function AIAgentInterface() {
     sendMessage(prompt);
   }
 
+  // Toggle sidebar on mobile
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  }
+
   return (
-    <div className="flex h-[650px] bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-      {/* Left sidebar */}
-      <div className="w-[320px] border-r border-gray-100 flex flex-col">
-        <div className="p-4">
+    <div className="relative flex flex-col md:flex-row h-[calc(100vh-4rem)] md:h-[650px] bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+      {/* Mobile menu button */}
+      <button
+        onClick={toggleSidebar}
+        className="md:hidden absolute top-4 left-4 z-20 p-2 rounded-lg bg-white shadow-md"
+      >
+        <ChevronRight className={`h-5 w-5 text-gray-500 transition-transform ${isSidebarOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {/* Left sidebar - hidden by default on mobile, shown when isSidebarOpen is true */}
+      <div className={`absolute md:relative w-full md:w-[320px] h-full bg-white border-r border-gray-100 transform transition-transform duration-300 ease-in-out ${
+        isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      } md:translate-x-0 z-10`}>
+        <div className="p-4 pt-16 md:pt-4">
           <h2 className="font-medium text-gray-700 mb-3">Quick Prompts</h2>
           <div className="space-y-2">
             {quickPrompts.map((item, index) => (
@@ -151,11 +168,11 @@ export default function AIAgentInterface() {
                 className="w-full text-left p-3 rounded-lg hover:bg-gray-50 transition-colors flex gap-3 items-start"
                 disabled={isLoading}
               >
-                <div className="bg-gray-100 p-2 rounded-lg">
+                <div className="bg-gray-100 p-2 rounded-lg flex-shrink-0">
                   {item.icon}
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-800">{item.title}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-800 truncate">{item.title}</p>
                   <p className="text-xs text-gray-500">{item.category}</p>
                 </div>
               </button>
@@ -173,9 +190,9 @@ export default function AIAgentInterface() {
       </div>
       
       {/* Chat area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col h-full">
         {/* Agent header */}
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+        <div className="p-4 pl-16 md:pl-4 border-b border-gray-100 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
               <ZapIcon className="h-5 w-5 text-blue-500" />
@@ -186,9 +203,6 @@ export default function AIAgentInterface() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button className="p-2 rounded-full hover:bg-gray-100">
-              <Maximize className="h-5 w-5 text-gray-500" />
-            </button>
             <button className="p-2 rounded-full hover:bg-gray-100">
               <Sun className="h-5 w-5 text-gray-500" />
             </button>
@@ -210,13 +224,13 @@ export default function AIAgentInterface() {
                 </div>
               )}
               <div
-                className={`max-w-[80%] p-3 rounded-lg ${
+                className={`max-w-[85%] p-3 rounded-lg ${
                   message.role === "user"
                     ? "bg-blue-600 text-white"
                     : "bg-gray-100 text-gray-800"
                 }`}
               >
-                <p className="whitespace-pre-wrap">{message.content}</p>
+                <p className="whitespace-pre-wrap break-words text-sm md:text-base">{message.content}</p>
               </div>
             </div>
           ))}
@@ -225,7 +239,7 @@ export default function AIAgentInterface() {
               <div className="h-8 w-8 rounded-full bg-gray-100 mr-2 flex-shrink-0 flex items-center justify-center">
                 <ZapIcon className="h-4 w-4 text-gray-400" />
               </div>
-              <div className="max-w-[80%] p-3 rounded-lg bg-gray-100">
+              <div className="max-w-[85%] p-3 rounded-lg bg-gray-100">
                 <div className="flex space-x-2">
                   <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "0ms" }}></div>
                   <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "300ms" }}></div>
@@ -245,17 +259,17 @@ export default function AIAgentInterface() {
               value={input}
               onChange={handleInputChange}
               placeholder="Ask about skills, learning paths, or career advice..."
-              className="flex-1 bg-gray-100 rounded-lg p-3 focus:outline-none text-gray-800 placeholder-gray-500"
+              className="flex-1 bg-gray-100 rounded-lg p-3 focus:outline-none text-gray-800 placeholder-gray-500 text-sm md:text-base"
               disabled={isLoading}
             />
             <button
               type="submit"
-              className="p-3 rounded-lg bg-blue-100 hover:bg-blue-200 transition-colors"
+              className="p-3 rounded-lg bg-blue-100 hover:bg-blue-200 transition-colors flex-shrink-0"
               disabled={!input.trim() || isLoading}
             >
               <Send className="h-5 w-5 text-blue-600" />
             </button>
-            <button type="button" className="p-3 rounded-lg hover:bg-gray-100 transition-colors">
+            <button type="button" className="p-3 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0">
               <BookmarkIcon className="h-5 w-5 text-gray-400" />
             </button>
           </form>
