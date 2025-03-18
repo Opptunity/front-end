@@ -3,13 +3,14 @@
 import { useState } from "react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
-import { Menu, X } from "lucide-react"
+import { Menu, X, ChevronDown, ZapIcon, Briefcase } from "lucide-react"
 import AnimatedButton from "./animations/animated-button"
 import LanguageSwitcher from "./language-switcher"
 import { useLanguage } from "@/contexts/language-context"
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isAIMenuOpen, setIsAIMenuOpen] = useState(false)
   const { t, isRTL } = useLanguage()
 
   const navItems = [
@@ -17,8 +18,33 @@ export default function Header() {
     { name: t("howItWorks"), href: "#how-it-works" },
     { name: t("pricing"), href: "#pricing" },
     { name: t("faq"), href: "#faq" },
-    { name: t("aiAgent"), href: "/ai-agent" },
+    { 
+      name: "AI Agents", 
+      href: "#",
+      hasDropdown: true,
+      dropdownItems: [
+        { 
+          name: t("aiAgentTitle") || "Learning AI", 
+          href: "/ai-agent",
+          icon: <ZapIcon className="h-4 w-4 text-blue-500 mr-2" />
+        },
+        { 
+          name: t("careerAIAgentTitle") || "Career AI", 
+          href: "/career-agent",
+          icon: <Briefcase className="h-4 w-4 text-purple-500 mr-2" /> 
+        },
+      ]
+    },
   ]
+
+  const toggleAIMenu = () => {
+    setIsAIMenuOpen(!isAIMenuOpen);
+  }
+
+  const closeAllMenus = () => {
+    setIsMenuOpen(false);
+    setIsAIMenuOpen(false);
+  }
 
   return (
     <motion.header
@@ -48,9 +74,37 @@ export default function Header() {
                 transition={{ duration: 0.3, delay: index * 0.1 }}
                 className={isRTL ? "mr-8" : ""}
               >
-                <Link href={item.href} className="text-gray-600 hover:text-blue-600 transition-colors">
-                  {item.name}
-                </Link>
+                {item.hasDropdown ? (
+                  <div className="relative">
+                    <button 
+                      onClick={toggleAIMenu}
+                      className="text-gray-600 hover:text-blue-600 transition-colors flex items-center"
+                    >
+                      {item.name}
+                      <ChevronDown className={`ml-1 h-4 w-4 transition-transform ${isAIMenuOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    {isAIMenuOpen && (
+                      <div className="absolute mt-2 bg-white rounded-md shadow-lg py-1 z-20 min-w-[200px]">
+                        {item.dropdownItems?.map((dropdownItem, idx) => (
+                          <Link 
+                            key={idx} 
+                            href={dropdownItem.href}
+                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                            onClick={closeAllMenus}
+                          >
+                            {dropdownItem.icon}
+                            {dropdownItem.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <Link href={item.href} className="text-gray-600 hover:text-blue-600 transition-colors">
+                    {item.name}
+                  </Link>
+                )}
               </motion.div>
             ))}
             <motion.div
@@ -92,20 +146,57 @@ export default function Header() {
               transition={{ duration: 0.3 }}
             >
               {navItems.map((item, index) => (
-                <motion.div
-                  key={item.name}
-                  initial={{ opacity: 0, x: isRTL ? 20 : -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                >
-                  <Link
-                    href={item.href}
-                    className="block px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-md"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {item.name}
-                  </Link>
-                </motion.div>
+                <div key={item.name}>
+                  {item.hasDropdown ? (
+                    <>
+                      <button
+                        onClick={() => setIsAIMenuOpen(!isAIMenuOpen)}
+                        className="flex items-center justify-between w-full px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-md"
+                      >
+                        <span>{item.name}</span>
+                        <ChevronDown className={`h-4 w-4 transition-transform ${isAIMenuOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      
+                      <AnimatePresence>
+                        {isAIMenuOpen && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="ml-4 mt-1 space-y-1"
+                          >
+                            {item.dropdownItems?.map((dropdownItem, idx) => (
+                              <Link 
+                                key={idx} 
+                                href={dropdownItem.href}
+                                className="flex items-center px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-md"
+                                onClick={closeAllMenus}
+                              >
+                                {dropdownItem.icon}
+                                {dropdownItem.name}
+                              </Link>
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </>
+                  ) : (
+                    <motion.div
+                      initial={{ opacity: 0, x: isRTL ? 20 : -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.1 }}
+                    >
+                      <Link
+                        href={item.href}
+                        className="block px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-md"
+                        onClick={closeAllMenus}
+                      >
+                        {item.name}
+                      </Link>
+                    </motion.div>
+                  )}
+                </div>
               ))}
               <motion.div
                 className="px-4 pt-2 pb-4"
@@ -113,7 +204,7 @@ export default function Header() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: 0.3 }}
               >
-                <Link href="/#waitlist-form" onClick={() => setIsMenuOpen(false)}>
+                <Link href="/#waitlist-form" onClick={closeAllMenus}>
                   <AnimatedButton className="w-full bg-blue-600 text-white hover:bg-blue-700">
                     {t("joinWaitlist")}
                   </AnimatedButton>
