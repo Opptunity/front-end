@@ -1,9 +1,5 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server";
 
-// URL for the external Python API - simple FastAPI server
-const PYTHON_API_URL = process.env.PYTHON_API_URL || "https://ai-agent-script.vercel.app/api/chat"
-
-// Define the type expected by the FastAPI backend
 interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -25,7 +21,7 @@ export async function POST(request: Request) {
 
     // Forward the request to the Python backend
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chat`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -59,4 +55,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
+} 
