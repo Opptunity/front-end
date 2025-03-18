@@ -398,7 +398,7 @@ const translations = {
     usersIncluded: "users included",
 
     // AI Agents
-    aiAgentTitle: "AI Learning Assistant",
+    aiAgentTitle: "Data Science Learning Assistant",
     aiAgentDescription: "Get personalized learning recommendations, skill assessments, and educational content from our AI learning assistant.",
     careerAIAgentTitle: "Career AI Agent",
     careerAIAgentDescription: "Get personalized career advice, job search strategies, and professional development guidance from our AI career agent.",
