@@ -389,9 +389,19 @@ const translations = {
     companySize1001to5000: "1001-5000 employees",
     companySizeOver5000: "5001+ employees",
 
-    // AI Agent Page
-    aiAgent: "AI Agent",
-    aiAgentDesc: "Interact with our powerful AI assistant",
+    // Pricing cards
+    perUserPerMonth: "per user / month",
+    teamFeatures: "Team features",
+    businessFeatures: "Business features",
+    enterpriseFeatures: "Enterprise features",
+    includedFeatures: "Included features",
+    usersIncluded: "users included",
+
+    // AI Agents
+    aiAgentTitle: "AI Learning Assistant",
+    aiAgentDescription: "Get personalized learning recommendations, skill assessments, and educational content from our AI learning assistant.",
+    careerAIAgentTitle: "Career AI Agent",
+    careerAIAgentDescription: "Get personalized career advice, job search strategies, and professional development guidance from our AI career agent.",
   },
   ar: {
     // Header
@@ -726,7 +736,7 @@ const translations = {
     
     // Time options
     timeLessThan1Hour: "أقل من ساعة واحدة في الأسبوع",
-    time1To2Hours: "1-2 ساعة في الأسبوع",
+    time1To2Hours: "1-2 ساعات في الأسبوع",
     time3To5Hours: "3-5 ساعات في الأسبوع",
     time6To10Hours: "6-10 ساعات في الأسبوع",
     timeMoreThan10Hours: "أكثر من 10 ساعات في الأسبوع",
@@ -769,9 +779,19 @@ const translations = {
     companySize1001to5000: "1001-5000 موظف",
     companySizeOver5000: "أكثر من 5000 موظف",
 
-    // AI Agent Page
-    aiAgent: "الوكيل الذكي",
-    aiAgentDesc: "تفاعل مع مساعدنا الذكي القوي",
+    // Pricing cards
+    perUserPerMonth: "لكل مستخدم / شهريًا",
+    teamFeatures: "ميزات الفريق",
+    businessFeatures: "ميزات الأعمال",
+    enterpriseFeatures: "ميزات المؤسسات",
+    includedFeatures: "الميزات المشمولة",
+    usersIncluded: "المستخدمين المشمولين",
+
+    // AI Agents
+    aiAgentTitle: "مساعد التعلم الذكي",
+    aiAgentDescription: "احصل على توصيات تعليمية مخصصة، وتقييمات للمهارات، ومحتوى تعليمي من مساعد التعلم الذكي.",
+    careerAIAgentTitle: "مساعد المسار الوظيفي الذكي",
+    careerAIAgentDescription: "احصل على نصائح مهنية مخصصة، واستراتيجيات البحث عن وظائف، وإرشادات للتطوير المهني من مساعد المسار الوظيفي الذكي.",
   },
 }
 
