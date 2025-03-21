@@ -9,7 +9,7 @@ import AnimatedButton from "@/components/animations/animated-button"
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null)
+  const [message, setMessage] = useState("")
   const { t } = useLanguage()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -59,12 +59,12 @@ export default function LoginPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="text-center">
+        <div className="text-center mb-8">
           <Link href="/">
-            <h2 className="text-3xl font-bold text-blue-600 mb-2">Opptunity</h2>
+            <h1 className="text-3xl font-bold text-blue-600 mb-2">Opptunity</h1>
           </Link>
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6">
-            {t("loginTitle") || "Log in to your account"}
+          <h2 className="text-2xl font-semibold text-gray-800">
+            {t("loginWelcome") || "Welcome Back"}
           </h2>
         </div>
 
@@ -78,10 +78,10 @@ export default function LoginPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              {t("emailAddress") || "Email address"}
+              {t("emailAddress") || "Email Address"}
             </label>
             <input
               id="email"
@@ -89,10 +89,10 @@ export default function LoginPage() {
               type="email"
               autoComplete="email"
               required
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder={t("emailPlaceholder") || "you@example.com"}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              placeholder="you@example.com"
             />
           </div>
 
@@ -102,19 +102,17 @@ export default function LoginPage() {
               className="w-full bg-blue-600 text-white hover:bg-blue-700"
               disabled={isLoading}
             >
-              {isLoading ? (t("sending") || "Sending...") : (t("sendLoginLink") || "Send Login Link")}
+              {isLoading ? t("sendingLink") || "Sending..." : t("sendLoginLink") || "Send Login Link"}
             </AnimatedButton>
           </div>
-
-          <div className="text-sm text-center mt-4">
-            <p className="text-gray-600">
-              {t("noAccountYet") || "Don't have an account yet?"}
-              <Link href="/#waitlist-form" className="ml-1 text-blue-600 hover:text-blue-500">
-                {t("joinWaitlist") || "Join the waitlist"}
-              </Link>
-            </p>
-          </div>
         </form>
+
+        <div className="mt-6 text-center text-sm">
+          <span className="text-gray-600">{t("noAccountYet") || "Don't have an account?"}</span>{" "}
+          <Link href="/#waitlist-form" className="text-blue-600 hover:text-blue-800 font-medium">
+            {t("joinWaitlist") || "Join the Waitlist"}
+          </Link>
+        </div>
       </motion.div>
     </div>
   )
