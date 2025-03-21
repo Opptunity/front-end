@@ -18,6 +18,7 @@ const translations = {
     howItWorks: "How It Works",
     pricing: "Pricing",
     faq: "FAQ",
+    login: "Log In",
     joinWaitlist: "Join the Waitlist",
     tryAssessment: "Try our free upskilling assessment",
     learnMore: "Learn More",
@@ -402,6 +403,16 @@ const translations = {
     aiAgentDescription: "Get personalized learning recommendations, skill assessments, and educational content from our AI learning assistant.",
     careerAIAgentTitle: "Career AI Agent",
     careerAIAgentDescription: "Get personalized career advice, job search strategies, and professional development guidance from our AI career agent.",
+
+    // Login
+    enterEmail: "Enter your email address to receive a magic login link",
+    emailAddress: "Email address",
+    loginWithEmail: "Log in with Email",
+    loggingIn: "Logging in...",
+    loginFailed: "Login failed",
+    loginError: "An error occurred during login",
+    magicLinkSent: "Magic link sent to your email!",
+    backToHome: "Back to Home",
   },
   ar: {
     // Header
@@ -409,6 +420,7 @@ const translations = {
     howItWorks: "آلية العمل",
     pricing: "الباقات والأسعار",
     faq: "الأسئلة الشائعة",
+    login: "تسجيل الدخول",
     joinWaitlist: "انضم لقائمة الانتظار",
     tryAssessment: "جرب تقييم تطوير المهارات المجاني",
     learnMore: "اكتشف المزيد",
@@ -792,6 +804,16 @@ const translations = {
     aiAgentDescription: "احصل على توصيات تعليمية مخصصة، وتقييمات للمهارات، ومحتوى تعليمي من مساعد التعلم الذكي.",
     careerAIAgentTitle: "مساعد المسار الوظيفي الذكي",
     careerAIAgentDescription: "احصل على نصائح مهنية مخصصة، واستراتيجيات البحث عن وظائف، وإرشادات للتطوير المهني من مساعد المسار الوظيفي الذكي.",
+
+    // Login
+    enterEmail: "أدخل عنوان بريدك الإلكتروني لتلقي رابط تسجيل الدخول",
+    emailAddress: "عنوان البريد الإلكتروني",
+    loginWithEmail: "تسجيل الدخول بالبريد الإلكتروني",
+    loggingIn: "جاري تسجيل الدخول...",
+    loginFailed: "فشل تسجيل الدخول",
+    loginError: "حدث خطأ أثناء تسجيل الدخول",
+    magicLinkSent: "تم إرسال رابط التسجيل إلى بريدك الإلكتروني!",
+    backToHome: "العودة إلى الصفحة الرئيسية",
   },
 }
 

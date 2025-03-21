@@ -1,22 +1,27 @@
 "use client"
 
 import { useState } from "react"
-import { motion } from "framer-motion"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { motion } from "framer-motion"
 import { useLanguage } from "@/contexts/language-context"
 import AnimatedButton from "@/components/animations/animated-button"
 
 export default function LoginPage() {
+  const router = useRouter()
+  const { t, isRTL } = useLanguage()
+  
   const [email, setEmail] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [message, setMessage] = useState("")
-  const { t } = useLanguage()
-
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
+  const [successMessage, setSuccessMessage] = useState("")
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
-    setMessage(null)
-
+    setIsSubmitting(true)
+    setErrorMessage("")
+    setSuccessMessage("")
+    
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_AUTH_API_URL}/api/users/login`, {
         method: "POST",
@@ -29,88 +34,85 @@ export default function LoginPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || "Something went wrong")
+        throw new Error(data.error || t("loginFailed"))
       }
-
-      setMessage({
-        text: data.message || "Login link sent to your email!",
-        type: "success",
-      })
-
-      // If we have a preview URL (for development with Ethereal)
-      if (data.previewUrl) {
-        console.log("Preview URL:", data.previewUrl)
-      }
+      
+      setSuccessMessage(t("magicLinkSent"))
+      setTimeout(() => setSuccessMessage(""), 5000)
     } catch (error) {
-      setMessage({
-        text: error instanceof Error ? error.message : "Failed to send login link",
-        type: "error",
-      })
+      setErrorMessage(error instanceof Error ? error.message : t("loginError"))
     } finally {
-      setIsLoading(false)
+      setIsSubmitting(false)
     }
   }
-
+  
   return (
     <div className="min-h-screen flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
-      <motion.div
-        className="max-w-md w-full bg-white p-8 rounded-lg shadow-md"
+      <motion.div 
+        className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="text-center mb-8">
+        <div className="text-center">
           <Link href="/">
-            <h1 className="text-3xl font-bold text-blue-600 mb-2">Opptunity</h1>
+            <h2 className="text-3xl font-bold text-blue-600 mb-2">Opptunity</h2>
           </Link>
-          <h2 className="text-2xl font-semibold text-gray-800">
-            {t("loginWelcome") || "Welcome Back"}
+          <h2 className="text-2xl font-semibold text-gray-800 mb-2">
+            {t("login")}
           </h2>
+          <p className="text-gray-600">
+            {t("enterEmail")}
+          </p>
         </div>
-
-        {message && (
-          <div
-            className={`p-4 my-4 rounded-md ${
-              message.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
-            }`}
-          >
-            {message.text}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6">
+        
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              {t("emailAddress") || "Email Address"}
-            </label>
+            <label htmlFor="email" className="sr-only">{t("emailAddress")}</label>
             <input
               id="email"
               name="email"
               type="email"
               autoComplete="email"
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder={t("emailPlaceholder") || "you@example.com"}
+              className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+              placeholder={t("emailAddress")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
-
+          
+          {errorMessage && (
+            <div className="text-red-500 text-sm">
+              {errorMessage}
+            </div>
+          )}
+          
+          {successMessage && (
+            <div className="text-green-500 text-sm">
+              {successMessage}
+            </div>
+          )}
+          
           <div>
             <AnimatedButton
               type="submit"
-              className="w-full bg-blue-600 text-white hover:bg-blue-700"
-              disabled={isLoading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              disabled={isSubmitting}
             >
-              {isLoading ? t("sendingLink") || "Sending..." : t("sendLoginLink") || "Send Login Link"}
+              {isSubmitting ? (
+                <span className="absolute left-0 inset-y-0 flex items-center pl-3">
+                  <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                </span>
+              ) : null}
+              {isSubmitting ? t("loggingIn") : t("loginWithEmail")}
             </AnimatedButton>
           </div>
         </form>
-
-        <div className="mt-6 text-center text-sm">
-          <span className="text-gray-600">{t("noAccountYet") || "Don't have an account?"}</span>{" "}
-          <Link href="/#waitlist-form" className="text-blue-600 hover:text-blue-800 font-medium">
-            {t("joinWaitlist") || "Join the Waitlist"}
+        
+        <div className="mt-6 text-center">
+          <Link href="/" className="font-medium text-blue-600 hover:text-blue-500">
+            {t("backToHome")}
           </Link>
         </div>
       </motion.div>

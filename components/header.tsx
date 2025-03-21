@@ -64,7 +64,7 @@ export default function Header() {
             >
               <Link href="/login">
                 <AnimatedButton className="bg-white text-blue-600 border border-blue-600 hover:bg-blue-50">
-                  {t("login")}
+                  {t("login") || "Log In"}
                 </AnimatedButton>
               </Link>
               <Link href="/#waitlist-form">
@@ -125,7 +125,7 @@ export default function Header() {
               >
                 <Link href="/login" onClick={closeAllMenus}>
                   <AnimatedButton className="w-full bg-white text-blue-600 border border-blue-600 hover:bg-blue-50">
-                    {t("login")}
+                    {t("login") || "Log In"}
                   </AnimatedButton>
                 </Link>
                 <Link href="/#waitlist-form" onClick={closeAllMenus}>
