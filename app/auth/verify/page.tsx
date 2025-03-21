@@ -1,13 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import Link from "next/link"
 import { useLanguage } from "@/contexts/language-context"
 import AnimatedButton from "@/components/animations/animated-button"
 
-export default function VerifyPage() {
+// Create a client component that uses useSearchParams
+function VerifyContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { t } = useLanguage()
@@ -57,6 +58,7 @@ export default function VerifyPage() {
     verifyToken()
   }, [searchParams, router])
   
+  // Return the JSX content
   return (
     <div className="min-h-screen flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
       <motion.div
@@ -120,5 +122,18 @@ export default function VerifyPage() {
         </div>
       </motion.div>
     </div>
+  )
+}
+
+// Main page component with Suspense
+export default function VerifyPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+      </div>
+    }>
+      <VerifyContent />
+    </Suspense>
   )
 } 
