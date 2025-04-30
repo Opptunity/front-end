@@ -3,4 +3,21 @@
 "emailPlaceholder": "أنت@مثال.com",
 "sendLoginLink": "إرسال رابط تسجيل الدخول",
 "sendingLink": "جاري الإرسال...",
-"noAccountYet": "ليس لديك حساب؟" 
+"noAccountYet": "ليس لديك حساب؟",
+
+// Profile page
+"profile": "الملف الشخصي",
+"settings": "الإعدادات",
+"logout": "تسجيل الخروج",
+"cv_analysis": "تحليل السيرة الذاتية",
+"skills_assessment": "تقييم المهارات",
+"no_skills_found": "لا توجد بيانات مهارات متاحة",
+"experience_summary": "ملخص الخبرة",
+"no_experience_summary": "لا يوجد ملخص خبرة متاح",
+"improvement_areas": "مجالات التحسين",
+"no_improvement_areas": "لم يتم تحديد مجالات للتحسين",
+"job_fit": "تحليل ملاءمة الوظيفة",
+"match": "تطابق",
+"no_job_fit_data": "لا توجد بيانات ملاءمة وظيفية متاحة",
+"no_cv_uploaded": "لم يتم تحميل أو تحليل السيرة الذاتية بعد.",
+"upload_cv": "تحميل السيرة الذاتية الخاصة بك" 

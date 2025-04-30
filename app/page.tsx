@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
-import Header from "@/components/header"
+import LandingHeader from "@/components/LandingHeader"
 import Hero from "@/components/hero"
 import ValueProps from "@/components/value-props"
 import Testimonials from "@/components/testimonials"
@@ -40,7 +40,7 @@ export default function LandingPage() {
   return (
     <PageTransition>
       <div className="min-h-screen flex flex-col">
-        <Header />
+        <LandingHeader />
         <main className="flex-grow">
           <Hero />
           <ValueProps />

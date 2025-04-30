@@ -3,6 +3,7 @@ import "./globals.css"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { LanguageProvider } from "@/contexts/language-context"
+import { AuthProvider } from "@/contexts/auth-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -22,7 +23,13 @@ export default function RootLayout({
     <html lang="en" className="scroll-smooth">
       <body className={inter.className}>
         <LanguageProvider>
-          <div id="page-transitions">{children}</div>
+          <AuthProvider>
+            <div className="min-h-screen flex flex-col">
+              <main className="flex-grow">
+                <div id="page-transitions">{children}</div>
+              </main>
+            </div>
+          </AuthProvider>
         </LanguageProvider>
       </body>
     </html>
