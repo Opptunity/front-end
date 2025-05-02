@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { assessmentStorage } from "@/lib/storage"
 import { assessSkills } from "@/lib/skills-assessment"
-import { updateAssessmentResults } from "@/lib/supabase"
+import { updateAssessmentResults, getSupabaseId } from "@/lib/supabase"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -36,7 +36,17 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       assessmentStorage.set(id, { ...storedData, assessment })
 
       // Store the results in Supabase as well
-      await updateAssessmentResults(id, assessment)
+      try {
+        // Try to get Supabase UUID if we're using a local ID
+        const supabaseId = await getSupabaseId(id)
+        if (supabaseId) {
+          await updateAssessmentResults(supabaseId, assessment)
+        } else {
+          console.log("No valid Supabase ID found for local ID:", id)
+        }
+      } catch (dbError) {
+        console.error("Error updating assessment results:", dbError)
+      }
 
       console.log("Assessment completed successfully for ID:", id)
       console.log("Store update:", assessmentStorage.debug())

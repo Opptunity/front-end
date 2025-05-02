@@ -72,6 +72,12 @@ export async function POST(request: NextRequest) {
       try {
         text = await extractTextFromPdf(buffer);
         console.log("Text extracted, length:", text.length);
+        
+        // Check if the extracted text looks like raw PDF data
+        if (text.startsWith('%PDF-') || text.includes('endobj') || text.includes('stream')) {
+          console.error("PDF extraction failed: Output contains raw PDF data");
+          text = "PDF parsing failed. The extracted content appears to contain raw PDF data rather than readable text.";
+        }
       } catch (pdfError) {
         console.error("PDF extraction failed, using placeholder text:", pdfError);
         // Provide a placeholder text to continue the flow
