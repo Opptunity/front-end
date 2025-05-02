@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FileText, Brain, BookOpen } from "lucide-react"
 import { AnimatedContainer } from "@/components/animated-container"
 import { motion } from "framer-motion"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { updateEmailForAssessment } from "@/lib/supabase"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -15,7 +15,24 @@ import { Info } from "lucide-react"
 import type { AssessmentData } from "@/lib/types"
 import { useEmailCollection } from "@/contexts/email-collection-context"
 
-export default function AssessmentPage({ params }: { params: { id: string } }) {
+// Loading state component
+function LoadingAssessment() {
+  return (
+    <div className="container mx-auto py-10">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center justify-center p-12">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <p className="text-muted-foreground">Loading assessment data...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Client component that uses useSearchParams
+function AssessmentPageContent({ params }: { params: { id: string } }) {
   const [assessment, setAssessment] = useState<AssessmentData | null>(null)
   const [selectedRole, setSelectedRole] = useState<string | null>(null)
   const [emailReceived, setEmailReceived] = useState<string | null>(null)
@@ -233,5 +250,13 @@ export default function AssessmentPage({ params }: { params: { id: string } }) {
         </AnimatedContainer>
       </div>
     </div>
+  )
+}
+
+export default function AssessmentPage({ params }: { params: { id: string } }) {
+  return (
+    <Suspense fallback={<LoadingAssessment />}>
+      <AssessmentPageContent params={params} />
+    </Suspense>
   )
 }
