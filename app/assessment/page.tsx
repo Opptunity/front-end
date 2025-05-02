@@ -1,46 +1,84 @@
 "use client"
 
+import { FileUpload } from "@/components/file-upload"
+import { AssessmentProcess } from "@/components/assessment-process"
+//import { ApiTest } from "@/components/api-test"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Info } from "lucide-react"
+import { AnimatedContainer, FadeIn } from "@/components/animated-container"
 import { motion } from "framer-motion"
-import SkillGapAssessment from "../../components/skill-gap-assessment"
-import Header from "../../components/header"
-import PageTransition from "../../components/animations/page-transition"
-import { useLanguage } from "../../contexts/language-context"
+import { useSearchParams } from "next/navigation"
+import { useEffect } from "react"
+import { useEmailCollection } from "@/contexts/email-collection-context"
 
-export default function AssessmentPage() {
-  const { t } = useLanguage();
+export default function Home() {
+  const searchParams = useSearchParams()
+  const email = searchParams.get('email')
+  const assessmentId = searchParams.get('id')
+  const { collectEmail } = useEmailCollection()
   
-  return (
-    <PageTransition>
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-grow min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 relative overflow-hidden">
-          {/* Abstract background shapes */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute -top-[30%] -right-[10%] w-[80%] h-[80%] rounded-full bg-blue-100/30 blur-3xl"></div>
-            <div className="absolute -bottom-[30%] -left-[10%] w-[80%] h-[80%] rounded-full bg-indigo-100/30 blur-3xl"></div>
-            <div className="absolute top-[20%] left-[20%] w-[40%] h-[40%] rounded-full bg-purple-100/20 blur-3xl"></div>
-          </div>
+  // If email is in URL, save it to context and Supabase
+  useEffect(() => {
+    if (email) {
+      const storeEmail = async () => {
+        await collectEmail(email, assessmentId || undefined)
+      }
+      storeEmail()
+    }
+  }, [email, assessmentId, collectEmail])
 
-          <div className="container mx-auto py-12 px-4 relative z-10">
-            <motion.div 
-              className="max-w-xl mx-auto text-center mb-10"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <h1 className="font-bold mb-3 text-3xl md:text-4xl text-slate-900 bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-700">
-                {t("assessmentTitle")}
-              </h1>
-              <p className="text-slate-600 text-lg max-w-md mx-auto">
-                {t("assessmentSubtitle")}
-              </p>
-            </motion.div>
-            
-            {/* Main assessment component */}
-            <SkillGapAssessment />
-          </div>
-        </main>
+  return (
+    <div className="container mx-auto py-10">
+      <div className="max-w-3xl mx-auto">
+        <AnimatedContainer>
+          <motion.h1
+            className="text-4xl font-bold mb-2 text-center"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            Skills Assessment Agent
+          </motion.h1>
+          <motion.p
+            className="text-lg text-gray-600 mb-8 text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            Upload your CV to get an AI-powered assessment of your professional skills
+          </motion.p>
+
+          <AssessmentProcess />
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Submit Your CV</CardTitle>
+              <CardDescription>Upload your CV as a PDF file</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FadeIn delay={0.2}>
+                <Alert className="mb-4">
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    <p className="text-sm">
+                      <strong>Important:</strong> Ensure your PDF is properly formatted for the best results.
+                    </p>
+                  </AlertDescription>
+                </Alert>
+              </FadeIn>
+
+              <FileUpload initialEmail={email || ""} />
+            </CardContent>
+            {
+               /*  <CardFooter className="flex justify-center border-t pt-4">
+                 <ApiTest />
+               </CardFooter> */
+            }
+           
+          </Card>
+        </AnimatedContainer>
       </div>
-    </PageTransition>
+    </div>
   )
 }

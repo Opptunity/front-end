@@ -1,13 +1,30 @@
 "use client"
 
+import { useState } from "react"
 import { motion } from "framer-motion"
 import Link from "next/link"
 import AnimatedButton from "./animations/animated-button"
 import DashboardMockup from "./ui-mockups/dashboard-mockup"
 import { useLanguage } from "@/contexts/language-context"
+import { EmailPopup } from "@/components/ui/email-popup"
+import { useEmail } from "@/contexts/EmailContext"
+import { useRouter } from "next/navigation"
 
 export default function Hero() {
   const { t, isRTL } = useLanguage()
+  const [isEmailPopupOpen, setIsEmailPopupOpen] = useState(false)
+  const { setEmail } = useEmail()
+  const router = useRouter()
+
+  const handleShowEmailPopup = () => {
+    setIsEmailPopupOpen(true);
+  };
+
+  const handleEmailSubmit = (submittedEmail: string) => {
+    setEmail(submittedEmail);
+    setIsEmailPopupOpen(false);
+    router.push("/assessment");
+  };
 
   return (
     <section className="py-20 md:py-28 bg-gradient-to-b from-white to-blue-50 overflow-hidden relative">
@@ -70,14 +87,14 @@ export default function Hero() {
                 {t("joinWaitlist")}
               </AnimatedButton>
             </Link>
-            <Link href="/assessment">
+            <button onClick={handleShowEmailPopup}>
               <AnimatedButton
                 variant="outline"
                 className="border-blue-600 text-blue-600 hover:bg-blue-50 px-8 py-6 text-lg"
               >
                 {t("tryAssessment")}
               </AnimatedButton>
-            </Link>
+            </button>
           </motion.div>
         </div>
 
@@ -92,6 +109,13 @@ export default function Hero() {
           </div>
         </motion.div>
       </div>
+
+      {/* Email Popup */}
+      <EmailPopup
+        isOpen={isEmailPopupOpen}
+        onClose={() => setIsEmailPopupOpen(false)}
+        onSubmit={handleEmailSubmit}
+      />
     </section>
   )
 }
