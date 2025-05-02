@@ -14,20 +14,9 @@ import { useEmailCollection } from "@/contexts/email-collection-context"
 
 export default function Home() {
   const searchParams = useSearchParams()
-  const email = searchParams.get('email')
   const assessmentId = searchParams.get('id')
   const { collectEmail } = useEmailCollection()
   
-  // If email is in URL, save it to context and Supabase
-  useEffect(() => {
-    if (email) {
-      const storeEmail = async () => {
-        await collectEmail(email, assessmentId || undefined)
-      }
-      storeEmail()
-    }
-  }, [email, assessmentId, collectEmail])
-
   return (
     <div className="container mx-auto py-10">
       <div className="max-w-3xl mx-auto">
@@ -68,7 +57,7 @@ export default function Home() {
                 </Alert>
               </FadeIn>
 
-              <FileUpload initialEmail={email || ""} />
+              <FileUpload />
             </CardContent>
             {
                /*  <CardFooter className="flex justify-center border-t pt-4">

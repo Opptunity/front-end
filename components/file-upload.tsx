@@ -130,7 +130,7 @@ export function FileUpload({ initialEmail = "" }: FileUploadProps) {
 
       // Redirect to results page
       setTimeout(() => {
-        router.push(`/assessment/${data.id}?email=${encodeURIComponent(email)}`)
+        router.push(`/assessment/${data.id}`)
       }, 1000)
     } catch (err) {
       clearInterval(progressInterval)

@@ -19,9 +19,7 @@ export default function AssessmentPage({ params }: { params: { id: string } }) {
   const [assessment, setAssessment] = useState<AssessmentData | null>(null)
   const [selectedRole, setSelectedRole] = useState<string | null>(null)
   const [emailReceived, setEmailReceived] = useState<string | null>(null)
-  const [emailDebug, setEmailDebug] = useState<string>("")
   const searchParams = useSearchParams()
-  const email = searchParams.get('email')
   const { collectEmail } = useEmailCollection()
 
   // Listen for custom tab switch events
@@ -49,42 +47,22 @@ export default function AssessmentPage({ params }: { params: { id: string } }) {
     };
   }, []);
 
-  // Debug: Log search params and email on component mount
+  // Debug: Log search params on component mount
   useEffect(() => {
     console.log("URL SearchParams:", Object.fromEntries(searchParams ? [...searchParams.entries()] : []))
-    console.log("Email from URL:", email)
-    setEmailReceived(email)
     
-    // Debug all URL parameters
+    // Try to get email from localStorage
     if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href)
-      console.log("Full URL:", url.toString())
-      console.log("URL parameters:", url.search)
-      
-      setEmailDebug(`Email in URL: ${email || 'none'}, Search params: ${url.search}`)
-      
-      // Also try to get email from localStorage
       const storedEmail = localStorage.getItem("assessmentEmail")
       if (storedEmail) {
         console.log("Email found in localStorage:", storedEmail)
-        setEmailDebug(prev => `${prev}\nEmail in localStorage: ${storedEmail}`)
+        setEmailReceived(storedEmail)
         
-        // If we have an email in localStorage but not in URL, use that one
-        if (!email && storedEmail) {
-          console.log("Using email from localStorage")
-          setEmailReceived(storedEmail)
-          
-          // Save to context as well
-          collectEmail(storedEmail)
-        }
+        // Save to context as well
+        collectEmail(storedEmail)
       }
     }
-    
-    // Save to context if we have an email in URL
-    if (email) {
-      collectEmail(email)
-    }
-  }, [searchParams, email, collectEmail])
+  }, [searchParams, collectEmail])
 
   // Fetch assessment data to pass to CourseLibrary
   useEffect(() => {
@@ -111,26 +89,23 @@ export default function AssessmentPage({ params }: { params: { id: string } }) {
   
   // Save email to Supabase if provided in URL or localStorage
   useEffect(() => {
-    const finalEmail = emailReceived || email
+    const finalEmail = emailReceived
     
     if (finalEmail) {
       const saveEmail = async () => {
         try {
           await updateEmailForAssessment(params.id, finalEmail)
           console.log('Email saved to Supabase:', finalEmail)
-          setEmailDebug(prev => `${prev}\nEmail saved to Supabase: ${finalEmail}`)
         } catch (err) {
           console.error('Error saving email to Supabase:', err)
-          setEmailDebug(prev => `${prev}\nError saving to Supabase: ${err}`)
         }
       }
       
       saveEmail()
     } else {
       console.log('No email provided in URL or localStorage')
-      setEmailDebug(prev => `${prev}\nNo email provided in URL or localStorage`)
     }
-  }, [params.id, email, emailReceived])
+  }, [params.id, emailReceived])
 
   // Check for tab parameter in URL and switch to that tab if present
   useEffect(() => {

@@ -42,11 +42,11 @@ export default function EmailCollectionDialog() {
     
     // Navigate to appropriate page
     if (assessmentIdMatch && assessmentIdMatch[1]) {
-      // If already on an assessment page, just add email as query param and reload
-      router.push(`/assessment/${assessmentId}?email=${encodeURIComponent(email)}`)
+      // If already on an assessment page, just reload
+      router.push(`/assessment/${assessmentId}`)
     } else {
       // Otherwise go to the assessment page
-      router.push(`/assessment?email=${encodeURIComponent(email)}&id=${assessmentId}`)
+      router.push(`/assessment?id=${assessmentId}`)
     }
   }
 
