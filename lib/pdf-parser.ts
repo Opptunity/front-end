@@ -1,3 +1,6 @@
+// Update imports to use your custom wrapper
+import { parsePdf } from './pdf-parser-fix';
+
 // Simple PDF text extraction for Node.js environment
 export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
   if (!buffer || buffer.length === 0) {
@@ -5,17 +8,11 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
   }
 
   try {
-    // Use the pdf-parse package with dynamic import 
-    // to avoid issues with server-side rendering
-    const pdfParse = await (await import('pdf-parse')).default;
-    
     console.log("Starting PDF parsing...");
     
-    // Parse with increased timeout
-    const data = await pdfParse(buffer, {
-      // Increase timeout to handle larger documents
+    // Use your custom wrapper instead of directly importing pdf-parse
+    const data = await parsePdf(buffer, {
       timeout: 30000,
-      // Only get the text, not metadata
       max: 0
     });
     
