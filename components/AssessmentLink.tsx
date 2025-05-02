@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { EmailPopup } from "@/components/ui/email-popup";
-import { useEmail } from "@/contexts/EmailContext";
+import { useEmailCollection } from "@/contexts/email-collection-context";
 
 interface AssessmentLinkProps {
   children: React.ReactNode;
@@ -19,36 +17,24 @@ export function AssessmentLink({
   href = "/assessment",
   onClick
 }: AssessmentLinkProps) {
-  const [isPopupOpen, setIsPopupOpen] = useState(false);
-  const { email, setEmail, isEmailProvided } = useEmail();
+  const { isEmailCollected, setShowEmailDialog } = useEmailCollection();
   const router = useRouter();
 
   const handleClick = (e: React.MouseEvent) => {
     if (onClick) onClick();
     
-    if (!isEmailProvided) {
+    // Check for email in localStorage
+    const existingEmail = localStorage.getItem("userEmail") || localStorage.getItem("assessmentEmail");
+    
+    if (!isEmailCollected && !existingEmail) {
       e.preventDefault();
-      setIsPopupOpen(true);
+      setShowEmailDialog(true);
     }
   };
 
-  const handleEmailSubmit = (submittedEmail: string) => {
-    setEmail(submittedEmail);
-    setIsPopupOpen(false);
-    router.push(href);
-  };
-
   return (
-    <>
-      <Link href={href} className={className} onClick={handleClick}>
-        {children}
-      </Link>
-      
-      <EmailPopup
-        isOpen={isPopupOpen}
-        onClose={() => setIsPopupOpen(false)}
-        onSubmit={handleEmailSubmit}
-      />
-    </>
+    <Link href={href} className={className} onClick={handleClick}>
+      {children}
+    </Link>
   );
 } 
