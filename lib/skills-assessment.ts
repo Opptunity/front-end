@@ -81,7 +81,7 @@ export async function assessSkills(cvText: string) {
         
         9. Skill gap analysis - identify critical skills missing for their career progression
 
-        10. Course recommendations - based on the candidate's skills and industry, recommend courses that would be most relevant to their career development
+        10. Course recommendations - based on the candidate's skills and industry, recommend an extensive library of courses that would be most relevant to their career development
         
         Format your response as a valid JSON object with the following structure:
         {
