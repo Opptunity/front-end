@@ -6,24 +6,25 @@ import Link from "next/link"
 import AnimatedButton from "./animations/animated-button"
 import DashboardMockup from "./ui-mockups/dashboard-mockup"
 import { useLanguage } from "@/contexts/language-context"
-import { EmailPopup } from "@/components/ui/email-popup"
-import { useEmail } from "@/contexts/EmailContext"
+import { useEmailCollection } from "@/contexts/email-collection-context"
 import { useRouter } from "next/navigation"
 
 export default function Hero() {
   const { t, isRTL } = useLanguage()
-  const [isEmailPopupOpen, setIsEmailPopupOpen] = useState(false)
-  const { setEmail } = useEmail()
+  const { setShowEmailDialog } = useEmailCollection()
   const router = useRouter()
 
   const handleShowEmailPopup = () => {
-    setIsEmailPopupOpen(true);
-  };
-
-  const handleEmailSubmit = (submittedEmail: string) => {
-    setEmail(submittedEmail);
-    setIsEmailPopupOpen(false);
-    router.push("/assessment");
+    // Check if email already exists in localStorage
+    const existingEmail = localStorage.getItem("userEmail") || localStorage.getItem("assessmentEmail")
+    
+    if (existingEmail) {
+      // If email exists, go directly to assessment
+      router.push("/assessment")
+    } else {
+      // Show the email collection dialog instead of the EmailPopup
+      setShowEmailDialog(true)
+    }
   };
 
   return (
@@ -109,13 +110,6 @@ export default function Hero() {
           </div>
         </motion.div>
       </div>
-
-      {/* Email Popup */}
-      <EmailPopup
-        isOpen={isEmailPopupOpen}
-        onClose={() => setIsEmailPopupOpen(false)}
-        onSubmit={handleEmailSubmit}
-      />
     </section>
   )
 }
