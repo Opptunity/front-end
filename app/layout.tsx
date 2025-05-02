@@ -3,6 +3,9 @@ import "./globals.css"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { LanguageProvider } from "@/contexts/language-context"
+import { EmailCollectionProvider } from "@/contexts/email-collection-context"
+import { EmailProvider } from "@/contexts/EmailContext"
+import AssessmentRouteHandler from "@/components/assessment-route-handler"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -22,13 +25,14 @@ export default function RootLayout({
     <html lang="en" className="scroll-smooth">
       <body className={inter.className}>
         <LanguageProvider>
-          <div id="page-transitions">{children}</div>
+          <EmailProvider>
+            <EmailCollectionProvider>
+              <AssessmentRouteHandler />
+              <div id="page-transitions">{children}</div>
+            </EmailCollectionProvider>
+          </EmailProvider>
         </LanguageProvider>
       </body>
     </html>
   )
 }
-
-
-
-import './globals.css'
