@@ -7,10 +7,16 @@ import { Menu, X, ChevronDown } from "lucide-react"
 import AnimatedButton from "./animations/animated-button"
 import LanguageSwitcher from "./language-switcher"
 import { useLanguage } from "@/contexts/language-context"
+import { EmailPopup } from "@/components/ui/email-popup"
+import { useEmail } from "@/contexts/EmailContext"
+import { useRouter } from "next/navigation"
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isEmailPopupOpen, setIsEmailPopupOpen] = useState(false)
   const { t, isRTL } = useLanguage()
+  const { setEmail } = useEmail()
+  const router = useRouter()
 
   const navItems = [
     { name: t("features"), href: "#value-props" },
@@ -22,6 +28,17 @@ export default function Header() {
   const closeAllMenus = () => {
     setIsMenuOpen(false);
   }
+
+  const handleShowEmailPopup = () => {
+    setIsEmailPopupOpen(true);
+    closeAllMenus();
+  };
+
+  const handleEmailSubmit = (submittedEmail: string) => {
+    setEmail(submittedEmail);
+    setIsEmailPopupOpen(false);
+    router.push("/assessment");
+  };
 
   return (
     <motion.header
@@ -62,11 +79,20 @@ export default function Header() {
               transition={{ duration: 0.3, delay: 0.4 }}
               className="flex space-x-4"
             >
+              {/* Login button hidden for now
               <Link href="/login">
                 <AnimatedButton className="bg-white text-blue-600 border border-blue-600 hover:bg-blue-50">
                   {t("login") || "Log In"}
                 </AnimatedButton>
               </Link>
+              */}
+              {/* SA button hidden for now
+              <button onClick={handleShowEmailPopup}>
+                <AnimatedButton className="bg-green-600 text-white hover:bg-green-700">
+                  SA
+                </AnimatedButton>
+              </button>
+              */}
               <Link href="/#waitlist-form">
                 <AnimatedButton className="bg-blue-600 text-white hover:bg-blue-700">{t("joinWaitlist")}</AnimatedButton>
               </Link>
@@ -123,11 +149,20 @@ export default function Header() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: 0.3 }}
               >
+                {/* Login button hidden for now
                 <Link href="/login" onClick={closeAllMenus}>
                   <AnimatedButton className="w-full bg-white text-blue-600 border border-blue-600 hover:bg-blue-50">
                     {t("login") || "Log In"}
                   </AnimatedButton>
                 </Link>
+                */}
+                {/* SA button hidden for now
+                <button onClick={handleShowEmailPopup}>
+                  <AnimatedButton className="w-full bg-green-600 text-white hover:bg-green-700">
+                    SA
+                  </AnimatedButton>
+                </button>
+                */}
                 <Link href="/#waitlist-form" onClick={closeAllMenus}>
                   <AnimatedButton className="w-full bg-blue-600 text-white hover:bg-blue-700">
                     {t("joinWaitlist")}
@@ -138,6 +173,13 @@ export default function Header() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Email Popup */}
+      <EmailPopup
+        isOpen={isEmailPopupOpen}
+        onClose={() => setIsEmailPopupOpen(false)}
+        onSubmit={handleEmailSubmit}
+      />
     </motion.header>
   )
 }

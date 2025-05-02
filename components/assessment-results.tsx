@@ -1,0 +1,897 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  AlertCircle,
+  CheckCircle2,
+  Award,
+  TrendingUp,
+  FileText,
+  RefreshCcw,
+  Brain,
+  Briefcase,
+  Lightbulb,
+  AlertTriangle,
+  BookOpen,
+  Zap,
+  Info,
+} from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { motion, AnimatePresence } from "framer-motion"
+import { AnimatedContainer, AnimatedList, AnimatedListItem } from "./animated-container"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+
+type SkillLevel = "Beginner" | "Intermediate" | "Advanced" | "Expert" | "Unknown"
+
+type TechnicalSkill = {
+  skill: string
+  level: SkillLevel
+  justification: string
+}
+
+type IndustryAnalysis = {
+  industry: string
+  alignment: string
+  trends: string[]
+  keyInsights: string[]
+}
+
+type CareerTrajectory = {
+  currentLevel: string
+  potentialRoles: string[]
+  timeToNextLevel: string
+  developmentAreas: string[]
+}
+
+type SkillGapAnalysis = {
+  criticalGaps: string[]
+  importantGaps: string[]
+  learningResources: string[]
+}
+
+type AssessmentData = {
+  summary: string
+  technicalSkills: TechnicalSkill[]
+  softSkills: string[]
+  strengths: string[]
+  improvementAreas: string[]
+  recommendations: string[]
+  industryAnalysis: IndustryAnalysis
+  careerTrajectory: CareerTrajectory
+  skillGapAnalysis: SkillGapAnalysis
+}
+
+// New type for role-specific recommendations
+type RoleRecommendations = {
+  role: string
+  courses: string[]
+  skills: string[]
+  certifications: string[]
+}
+
+const getLevelColor = (level: SkillLevel) => {
+  switch (level) {
+    case "Beginner":
+      return "bg-gray-200 text-gray-800"
+    case "Intermediate":
+      return "bg-blue-200 text-blue-800"
+    case "Advanced":
+      return "bg-purple-200 text-purple-800"
+    case "Expert":
+      return "bg-green-200 text-green-800"
+    default:
+      return "bg-gray-200 text-gray-800"
+  }
+}
+
+const getLevelPercentage = (level: SkillLevel) => {
+  switch (level) {
+    case "Beginner":
+      return 25
+    case "Intermediate":
+      return 50
+    case "Advanced":
+      return 75
+    case "Expert":
+      return 100
+    default:
+      return 0
+  }
+}
+
+export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSelect?: (role: string | null) => void }) {
+  const [assessment, setAssessment] = useState<AssessmentData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
+  const [isRegenerating, setIsRegenerating] = useState(false)
+  // Add state for selected role
+  const [selectedRole, setSelectedRole] = useState<string | null>(null)
+  // Add state for role-specific recommendations
+  const [roleRecommendations, setRoleRecommendations] = useState<RoleRecommendations | null>(null)
+
+  const fetchAssessment = async (regenerate = false) => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      if (regenerate) {
+        setIsRegenerating(true)
+        // Request a new assessment report generation
+        const regenerateResponse = await fetch(`/api/assessment-report`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, includeLatestTest: true }),
+        });
+        
+        if (!regenerateResponse.ok) {
+          throw new Error("Failed to regenerate assessment report");
+        }
+        
+        await regenerateResponse.json();
+        setIsRegenerating(false);
+      }
+
+      // Fetch the assessment results
+      const response = await fetch(`/api/assess/${id}`)
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(
+          errorData.error || errorData.details || `Server error: ${response.status} ${response.statusText}`,
+        )
+      }
+
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.error || data.details || "Failed to get assessment results")
+      }
+
+      setAssessment(data.assessment)
+    } catch (err) {
+      console.error("Error fetching assessment:", err)
+      setError(err instanceof Error ? err.message : "Failed to load assessment results")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    // Check if we should regenerate the assessment report
+    const queryParams = new URLSearchParams(window.location.search);
+    const shouldRegenerate = queryParams.get('regenerate') === 'true';
+    
+    fetchAssessment(shouldRegenerate);
+    
+    // Clean up the URL after checking
+    if (shouldRegenerate) {
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+  }, [id, retryCount]);
+
+  // Generate role-specific recommendations when a role is selected
+  useEffect(() => {
+    if (selectedRole && assessment) {
+      generateRoleRecommendations(selectedRole, assessment);
+    } else {
+      setRoleRecommendations(null);
+    }
+  }, [selectedRole, assessment]);
+
+  // Function to generate role-specific recommendations
+  const generateRoleRecommendations = (role: string, assessment: AssessmentData) => {
+    // In a real application, this would come from an API
+    // Here we're generating some example recommendations based on the role
+    
+    // Get related technologies for the selected role
+    const relatedTechnologies = getRelatedTechnologiesForRole(role);
+    
+    // Filter the user's skills to find gaps
+    const userSkills = assessment.technicalSkills.map(skill => skill.skill);
+    const skillGaps = relatedTechnologies.filter(tech => !userSkills.includes(tech));
+    
+    // Generate role-specific recommendations
+    setRoleRecommendations({
+      role,
+      courses: [
+        `${role} Fundamentals Bootcamp`,
+        `Advanced ${role} Masterclass`,
+        `${role} Certification Preparation`,
+        ...skillGaps.map(skill => `${skill} for ${role} Professionals`)
+      ].slice(0, 3),
+      skills: [
+        ...skillGaps.slice(0, 2),
+        `${role} Best Practices`,
+        `${role} Architecture Patterns`
+      ].slice(0, 3),
+      certifications: [
+        `Professional ${role} Certification`,
+        `Advanced ${role} Specialist`,
+        `${assessment.industryAnalysis.industry} ${role} Expert`
+      ].slice(0, 2)
+    });
+  };
+
+  // Helper function to get related technologies for a role
+  const getRelatedTechnologiesForRole = (role: string): string[] => {
+    const roleToTech: Record<string, string[]> = {
+      'Junior Software Engineer': ['Data Structures', 'Algorithms', 'Git', 'CI/CD', 'Unit Testing'],
+      'Full-Stack Developer': ['React', 'Node.js', 'MongoDB', 'Express', 'GraphQL', 'RESTful APIs'],
+      'Microservices Developer': ['Docker', 'Kubernetes', 'API Gateway', 'Event-Driven Architecture', 'Serverless'],
+      // Add more roles as needed
+    };
+    
+    return roleToTech[role] || ['Programming Fundamentals', 'Software Design', 'Testing Methodologies'];
+  };
+
+  const handleRetry = () => {
+    setRetryCount((prev) => prev + 1)
+  }
+
+  // Function to handle role selection
+  const handleRoleSelect = (role: string) => {
+    const newSelectedRole = role === selectedRole ? null : role;
+    setSelectedRole(newSelectedRole);
+    // Call the parent's onRoleSelect if provided
+    if (onRoleSelect) {
+      onRoleSelect(newSelectedRole);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Processing your CV</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col items-center justify-center py-8">
+              <motion.div
+                className="flex items-center space-x-2 mb-4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5 }}
+              >
+                <motion.div
+                  className="w-3 h-3 bg-blue-500 rounded-full"
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ repeat: Number.POSITIVE_INFINITY, duration: 0.8, ease: "easeInOut" }}
+                ></motion.div>
+                <motion.div
+                  className="w-3 h-3 bg-blue-500 rounded-full"
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ repeat: Number.POSITIVE_INFINITY, duration: 0.8, ease: "easeInOut", delay: 0.15 }}
+                ></motion.div>
+                <motion.div
+                  className="w-3 h-3 bg-blue-500 rounded-full"
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ repeat: Number.POSITIVE_INFINITY, duration: 0.8, ease: "easeInOut", delay: 0.3 }}
+                ></motion.div>
+              </motion.div>
+              <motion.p
+                className="text-gray-500"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+              >
+                {isRegenerating 
+                  ? "Regenerating your assessment report with latest test results..."
+                  : "Our AI is analyzing your CV and generating a detailed skills assessment. This may take a minute..."}
+              </motion.p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="flex flex-col space-y-2">
+            <p>{error}</p>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button onClick={handleRetry} variant="outline" size="sm" className="self-start">
+                <RefreshCcw className="h-4 w-4 mr-2" />
+                Retry Assessment
+              </Button>
+            </motion.div>
+          </AlertDescription>
+        </Alert>
+      </motion.div>
+    )
+  }
+
+  if (!assessment) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>No assessment data found</AlertDescription>
+        </Alert>
+      </motion.div>
+    )
+  }
+
+  return (
+    <AnimatedContainer className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <FileText className="mr-2 h-5 w-5" />
+            Executive Summary
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6 }}>
+            {assessment.summary}
+          </motion.p>
+        </CardContent>
+      </Card>
+
+      <Tabs defaultValue="skills">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="skills" className="relative group">
+            <div className="flex items-center">
+              <Award className="mr-2 h-4 w-4" />
+              <span>Skills</span>
+            </div>
+            <motion.span
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full origin-left"
+              initial={{ scaleX: 1 }}
+              transition={{ duration: 0.3 }}
+            />
+          </TabsTrigger>
+          <TabsTrigger value="career" className="relative group">
+            <div className="flex items-center">
+              <TrendingUp className="mr-2 h-4 w-4" />
+              <span>Career Path</span>
+            </div>
+            <motion.span
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full origin-left"
+              initial={{ scaleX: 0 }}
+              whileHover={{ scaleX: 1 }}
+              transition={{ duration: 0.3 }}
+            />
+          </TabsTrigger>
+          <TabsTrigger value="gaps" className="relative group">
+            <div className="flex items-center">
+              <AlertTriangle className="mr-2 h-4 w-4" />
+              <span>Skill Gaps</span>
+            </div>
+            <motion.span
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full origin-left"
+              initial={{ scaleX: 0 }}
+              whileHover={{ scaleX: 1 }}
+              transition={{ duration: 0.3 }}
+            />
+          </TabsTrigger>
+          <TabsTrigger value="industry" className="relative group">
+            <div className="flex items-center">
+              <Briefcase className="mr-2 h-4 w-4" />
+              <span>Industry</span>
+            </div>
+            <motion.span
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full origin-left"
+              initial={{ scaleX: 0 }}
+              whileHover={{ scaleX: 1 }}
+              transition={{ duration: 0.3 }}
+            />
+          </TabsTrigger>
+        </TabsList>
+
+        <AnimatePresence mode="wait">
+          <TabsContent value="skills" className="mt-6 space-y-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center">
+                  <Award className="mr-2 h-5 w-5" />
+                  Technical Skills
+                </CardTitle>
+                <Badge variant="outline" className="bg-blue-50">
+                  Based on Industry Standards
+                </Badge>
+              </CardHeader>
+              <CardContent>
+                <AnimatedList className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {assessment.technicalSkills.map((skill, index) => (
+                    <AnimatedListItem key={index}>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <motion.div
+                              className="border rounded-lg p-4 hover:shadow-md transition-shadow cursor-help"
+                              whileHover={{ y: -2 }}
+                            >
+                              <div className="flex justify-between items-center mb-2">
+                                <h3 className="font-medium">{skill.skill}</h3>
+                                <div className="flex items-center">
+                                  <Badge className={getLevelColor(skill.level)}>{skill.level}</Badge>
+                                  <Info className="h-4 w-4 ml-1 text-gray-400" />
+                                </div>
+                              </div>
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${getLevelPercentage(skill.level)}%` }}
+                                transition={{ duration: 0.8, delay: index * 0.1, ease: "easeOut" }}
+                              >
+                                <Progress value={getLevelPercentage(skill.level)} className="h-2" />
+                              </motion.div>
+                            </motion.div>
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-xs p-4">
+                            <div className="space-y-2">
+                              <h4 className="font-semibold">Industry Standard Assessment</h4>
+                              <p className="text-sm">{skill.justification}</p>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </AnimatedListItem>
+                  ))}
+                </AnimatedList>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <CheckCircle2 className="mr-2 h-5 w-5" />
+                  Soft Skills
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AnimatedList className="flex flex-wrap gap-2">
+                  {assessment.softSkills.map((skill, index) => (
+                    <AnimatedListItem key={index}>
+                      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                        <Badge variant="outline" className="text-sm py-1">
+                          {skill}
+                        </Badge>
+                      </motion.div>
+                    </AnimatedListItem>
+                  ))}
+                </AnimatedList>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Zap className="mr-2 h-5 w-5" />
+                  Key Strengths
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AnimatedList className="space-y-2">
+                  {assessment.strengths.map((strength, index) => (
+                    <AnimatedListItem key={index}>
+                      <motion.div
+                        className="flex items-start"
+                        whileHover={{ x: 5 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                      >
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: index * 0.1, type: "spring" }}
+                        >
+                          <CheckCircle2 className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                        </motion.div>
+                        <span>{strength}</span>
+                      </motion.div>
+                    </AnimatedListItem>
+                  ))}
+                </AnimatedList>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="career" className="mt-6 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <TrendingUp className="mr-2 h-5 w-5" />
+                  Career Trajectory
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <Briefcase className="h-10 w-10 p-2 bg-blue-100 text-blue-600 rounded-full" />
+                  <div>
+                    <h3 className="font-medium">Current Level</h3>
+                    <div className="flex items-center mt-1">
+                      <Badge className="bg-blue-100 text-blue-800 mr-2">
+                        {assessment.careerTrajectory.currentLevel}
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        in {assessment.industryAnalysis.industry} industry
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-medium mb-2">Potential Next Roles</h3>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Select a role to see specific recommendations:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {assessment.careerTrajectory.potentialRoles.map((role, index) => (
+                      <Badge 
+                        key={index} 
+                        variant={selectedRole === role ? "default" : "outline"}
+                        className={`cursor-pointer ${selectedRole === role ? "bg-primary" : "bg-green-50 hover:bg-green-100"}`}
+                        onClick={() => handleRoleSelect(role)}
+                      >
+                        {role} {selectedRole === role && "✓"}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-medium mb-2">Estimated Time to Next Level</h3>
+                  <p className="text-sm">{assessment.careerTrajectory.timeToNextLevel}</p>
+                </div>
+
+                <div>
+                  <h3 className="font-medium mb-2">Development Areas</h3>
+                  <ul className="space-y-1">
+                    {assessment.careerTrajectory.developmentAreas.map((area, index) => (
+                      <li key={index} className="text-sm flex items-start">
+                        <TrendingUp className="h-4 w-4 text-amber-500 mr-2 mt-0.5 flex-shrink-0" />
+                        <span>{area}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <TrendingUp className="mr-2 h-5 w-5" />
+                  {selectedRole ? `Recommendations for ${selectedRole}` : "General Recommendations"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {selectedRole && roleRecommendations ? (
+                  <div className="space-y-6">
+                    {/* Skills to focus on */}
+                    <div className="space-y-2">
+                      <h3 className="font-medium">Skills to Focus On</h3>
+                      <ul className="space-y-1">
+                        {roleRecommendations.skills.map((skill, index) => (
+                          <li key={index} className="flex items-start">
+                            <CheckCircle2 className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                            <span>{skill}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    
+                    {/* Recommended courses */}
+                    <div className="space-y-2">
+                      <h3 className="font-medium">Recommended Courses</h3>
+                      <ul className="space-y-1">
+                        {roleRecommendations.courses.map((course, index) => (
+                          <li key={index} className="flex items-start">
+                            <BookOpen className="h-4 w-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                            <span>{course}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            // Dispatch a custom event to switch tabs
+                            const event = new CustomEvent('switchTab', { detail: { tab: 'courses' } });
+                            window.dispatchEvent(event);
+                          }}
+                          className="text-xs"
+                        >
+                          <BookOpen className="h-3 w-3 mr-1" />
+                          View All Courses
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {/* Recommended certifications */}
+                    <div className="space-y-2">
+                      <h3 className="font-medium">Recommended Certifications</h3>
+                      <ul className="space-y-1">
+                        {roleRecommendations.certifications.map((cert, index) => (
+                          <li key={index} className="flex items-start">
+                            <Award className="h-4 w-4 text-amber-500 mr-2 mt-0.5 flex-shrink-0" />
+                            <span>{cert}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                ) : (
+                  <AnimatedList className="space-y-3">
+                    {assessment.recommendations.map((recommendation, index) => (
+                      <AnimatedListItem key={index}>
+                        <motion.div
+                          className="flex items-start p-3 border rounded-md"
+                          whileHover={{ y: -2, boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}
+                          transition={{ type: "spring", stiffness: 300, damping: 15 }}
+                        >
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ delay: index * 0.1, type: "spring" }}
+                          >
+                            <TrendingUp className="h-5 w-5 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                          </motion.div>
+                          <span>{recommendation}</span>
+                        </motion.div>
+                      </AnimatedListItem>
+                    ))}
+                    {assessment.careerTrajectory.potentialRoles.length > 0 && (
+                      <AnimatedListItem>
+                        <motion.div
+                          className="p-3 border border-dashed rounded-md bg-gray-50"
+                          whileHover={{ y: -2 }}
+                          transition={{ type: "spring", stiffness: 300, damping: 15 }}
+                        >
+                          <p className="text-center text-sm text-muted-foreground">
+                            Select a specific role above to see tailored recommendations
+                          </p>
+                        </motion.div>
+                      </AnimatedListItem>
+                    )}
+                  </AnimatedList>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="gaps" className="mt-6 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <AlertTriangle className="mr-2 h-5 w-5" />
+                  Skill Gap Analysis
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {assessment.skillGapAnalysis.criticalGaps.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="font-medium flex items-center">
+                      <AlertTriangle className="h-4 w-4 text-red-500 mr-1" />
+                      Critical Skill Gaps
+                    </h3>
+                    <div className="space-y-2">
+                      {assessment.skillGapAnalysis.criticalGaps.map((gap, index) => (
+                        <div
+                          key={index}
+                          className="flex justify-between items-center p-2 border border-red-100 bg-red-50 rounded-md"
+                        >
+                          <span>{gap}</span>
+                          <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">
+                            Critical
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {assessment.skillGapAnalysis.importantGaps.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="font-medium flex items-center">
+                      <AlertTriangle className="h-4 w-4 text-amber-500 mr-1" />
+                      Important Skill Gaps
+                    </h3>
+                    <div className="space-y-2">
+                      {assessment.skillGapAnalysis.importantGaps.map((gap, index) => (
+                        <div
+                          key={index}
+                          className="flex justify-between items-center p-2 border border-amber-100 bg-amber-50 rounded-md"
+                        >
+                          <span>{gap}</span>
+                          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">
+                            Important
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-4 p-4 border rounded-lg bg-blue-50 border-blue-100">
+                  <div className="flex items-center mb-2">
+                    <BookOpen className="h-5 w-5 text-blue-600 mr-2" />
+                    <h3 className="font-medium">Recommended Learning Resources</h3>
+                  </div>
+                  <ul className="space-y-1 text-sm">
+                    {assessment.skillGapAnalysis.learningResources.map((resource, index) => (
+                      <li key={index} className="flex items-start">
+                        <CheckCircle2 className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                        <span>{resource}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <AlertTriangle className="mr-2 h-5 w-5" />
+                  Areas for Improvement
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AnimatedList className="space-y-2">
+                  {assessment.improvementAreas.map((area, index) => (
+                    <AnimatedListItem key={index}>
+                      <motion.div
+                        className="flex items-start"
+                        whileHover={{ x: 5 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                      >
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: index * 0.1, type: "spring" }}
+                        >
+                          <TrendingUp className="h-5 w-5 text-amber-500 mr-2 mt-0.5 flex-shrink-0" />
+                        </motion.div>
+                        <span>{area}</span>
+                      </motion.div>
+                    </AnimatedListItem>
+                  ))}
+                </AnimatedList>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="industry" className="mt-6 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Briefcase className="mr-2 h-5 w-5" />
+                  Industry Analysis
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <h3 className="font-medium mb-2">Industry</h3>
+                  <Badge className="bg-blue-100 text-blue-800">{assessment.industryAnalysis.industry}</Badge>
+                </div>
+
+                <div>
+                  <h3 className="font-medium mb-2">Skills Alignment</h3>
+                  <p className="text-sm">{assessment.industryAnalysis.alignment}</p>
+                </div>
+
+                <div>
+                  <h3 className="font-medium mb-2">Industry Trends</h3>
+                  <ul className="space-y-1">
+                    {assessment.industryAnalysis.trends.map((trend, index) => (
+                      <li key={index} className="text-sm flex items-start">
+                        <Lightbulb className="h-4 w-4 text-amber-500 mr-2 mt-0.5 flex-shrink-0" />
+                        <span>{trend}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div>
+                  <h3 className="font-medium mb-2">Key Insights</h3>
+                  <ul className="space-y-1">
+                    {assessment.industryAnalysis.keyInsights.map((insight, index) => (
+                      <li key={index} className="text-sm flex items-start">
+                        <Brain className="h-4 w-4 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
+                        <span>{insight}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </AnimatePresence>
+      </Tabs>
+
+      {/*
+      {assessment && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Brain className="mr-2 h-5 w-5" />
+                Validate Your Skills
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="mb-4">
+                Take a personalized test based on your skills profile to validate your knowledge and identify areas for
+                improvement.
+              </p>
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+              >
+                <Button
+                  onClick={() => {
+                    // Dispatch a custom event to switch tabs
+                    const event = new CustomEvent('switchTab', { detail: { tab: 'test' } });
+                    window.dispatchEvent(event);
+                  }}
+                  className="w-full"
+                >
+                  Take Skills Test
+                </Button>
+              </motion.div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {assessment && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+        >
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <BookOpen className="mr-2 h-5 w-5" />
+                Recommended Courses
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="mb-4">
+                Explore personalized course recommendations based on your skills profile and improvement areas.
+              </p>
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+              >
+                <Button
+                  onClick={() => {
+                    // Dispatch a custom event to switch tabs
+                    const event = new CustomEvent('switchTab', { detail: { tab: 'courses' } });
+                    window.dispatchEvent(event);
+                  }}
+                  className="w-full"
+                  variant="outline"
+                >
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  Browse Course Library
+                </Button>
+              </motion.div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+      */}
+    </AnimatedContainer>
+  )
+}
