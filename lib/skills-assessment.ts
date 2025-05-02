@@ -31,8 +31,13 @@ function extractJsonFromText(text: string): string {
 
 export async function assessSkills(cvText: string) {
   try {
-    console.log("Starting skills assessment:", cvText)
-
+    // Check if the text looks like raw PDF data
+    if (cvText.startsWith('%PDF-') || cvText.includes('endobj') || cvText.includes('stream')) {
+      console.log("Input appears to be raw PDF data rather than extracted text")
+      return createFallbackAssessment("The input appears to be raw PDF data rather than extracted text. Please ensure proper text extraction before assessment.")
+    }
+    
+    console.log("Starting skills assessment:", cvText.substring(0, 100) + "...")
 
     // Use OpenAI if available, otherwise fall back to Grok
     const model = process.env.OPENAI_API_KEY ? openai("gpt-4o") : xai("grok-2")
