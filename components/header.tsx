@@ -7,15 +7,13 @@ import { Menu, X, ChevronDown } from "lucide-react"
 import AnimatedButton from "./animations/animated-button"
 import LanguageSwitcher from "./language-switcher"
 import { useLanguage } from "@/contexts/language-context"
-import { EmailPopup } from "@/components/ui/email-popup"
-import { useEmail } from "@/contexts/EmailContext"
+import { useEmailCollection } from "@/contexts/email-collection-context"
 import { useRouter } from "next/navigation"
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isEmailPopupOpen, setIsEmailPopupOpen] = useState(false)
   const { t, isRTL } = useLanguage()
-  const { setEmail } = useEmail()
+  const { setShowEmailDialog } = useEmailCollection()
   const router = useRouter()
 
   const navItems = [
@@ -30,14 +28,17 @@ export default function Header() {
   }
 
   const handleShowEmailPopup = () => {
-    setIsEmailPopupOpen(true);
-    closeAllMenus();
-  };
-
-  const handleEmailSubmit = (submittedEmail: string) => {
-    setEmail(submittedEmail);
-    setIsEmailPopupOpen(false);
-    router.push("/assessment");
+    // Check if email already exists in localStorage
+    const existingEmail = localStorage.getItem("userEmail") || localStorage.getItem("assessmentEmail")
+    
+    if (existingEmail) {
+      // If email exists, go directly to assessment
+      router.push("/assessment")
+    } else {
+      // Show the email collection dialog instead of the EmailPopup
+      setShowEmailDialog(true)
+      closeAllMenus();
+    }
   };
 
   return (
@@ -173,13 +174,6 @@ export default function Header() {
           )}
         </AnimatePresence>
       </div>
-
-      {/* Email Popup */}
-      <EmailPopup
-        isOpen={isEmailPopupOpen}
-        onClose={() => setIsEmailPopupOpen(false)}
-        onSubmit={handleEmailSubmit}
-      />
     </motion.header>
   )
 }
