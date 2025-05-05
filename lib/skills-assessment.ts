@@ -2,6 +2,9 @@ import { generateText } from "ai"
 import { openai } from "@ai-sdk/openai"
 import { xai } from "@ai-sdk/xai"
 
+// Add a request cache to prevent duplicate API calls
+const assessmentCache = new Map();
+
 // Helper function to extract JSON from a string that might contain markdown code blocks
 function extractJsonFromText(text: string): string {
   console.log("Raw AI response:", text.substring(0, 200) + "...") // Log the beginning of the response
@@ -31,6 +34,15 @@ function extractJsonFromText(text: string): string {
 
 export async function assessSkills(cvText: string) {
   try {
+    // Generate a cache key based on the CV text (first 100 chars should be enough to identify)
+    const cacheKey = cvText.substring(0, 100);
+    
+    // Check if we already have a cached result for this text
+    if (assessmentCache.has(cacheKey)) {
+      console.log("Using cached assessment result");
+      return assessmentCache.get(cacheKey);
+    }
+    
     // Check if the text looks like raw PDF data
     if (cvText.startsWith('%PDF-') || cvText.includes('endobj') || cvText.includes('stream')) {
       console.log("Input appears to be raw PDF data rather than extracted text")
@@ -81,7 +93,6 @@ export async function assessSkills(cvText: string) {
         
         9. Skill gap analysis - identify critical skills missing for their career progression
 
-        10. Course recommendations - based on the candidate's skills and industry, recommend an extensive library of courses that would be most relevant to their career development
         
         Format your response as a valid JSON object with the following structure:
         {
@@ -114,15 +125,6 @@ export async function assessSkills(cvText: string) {
             "importantGaps": ["..."],
             "learningResources": ["..."]
           },
-          "recommendedCourses": [
-            {
-              "title": "...",
-              "provider": "...",
-              "level": "...",
-              "url": "...",
-              "relevance": "Why this course is recommended based on the CV"
-            }
-          ]
         }
         
         IMPORTANT: Return ONLY the JSON object without any markdown formatting, explanation, or code blocks.
@@ -144,18 +146,24 @@ export async function assessSkills(cvText: string) {
         console.error("Invalid JSON structure:", result)
         throw new Error("AI returned invalid JSON structure")
       }
-
+      
+      // Cache the result
+      assessmentCache.set(cacheKey, result);
+      
       return result
     } catch (parseError) {
       console.error("Error parsing JSON:", parseError)
       console.error("JSON text that failed to parse:", jsonText)
 
       // Create a fallback response
-      return createFallbackAssessment(cvText)
+      const fallback = createFallbackAssessment(cvText);
+      assessmentCache.set(cacheKey, fallback);
+      return fallback;
     }
   } catch (error) {
     console.error("Error assessing skills:", error)
-    return createFallbackAssessment(cvText)
+    const fallback = createFallbackAssessment(cvText);
+    return fallback;
   }
 }
 

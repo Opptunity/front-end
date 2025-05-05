@@ -3,6 +3,9 @@ import { assessmentStorage } from "@/lib/storage"
 import { assessSkills } from "@/lib/skills-assessment"
 import { updateAssessmentResults, getSupabaseId } from "@/lib/supabase"
 
+// Track currently processing assessments
+const processingAssessments = new Set();
+
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const id = (await params).id
@@ -24,6 +27,19 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         assessment: storedData.assessment,
       })
     }
+
+    // Check if this assessment is already being processed
+    if (processingAssessments.has(id)) {
+      console.log("Assessment already in progress for ID:", id);
+      return NextResponse.json({
+        success: false,
+        error: "Assessment is being processed, please try again in a moment",
+        processing: true
+      }, { status: 202 }); // 202 Accepted - request received but not completed yet
+    }
+
+    // Mark this assessment as being processed
+    processingAssessments.add(id);
 
     console.log("Performing new assessment for ID:", id)
     console.log("CV text length:", storedData.text.length)
@@ -51,12 +67,18 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       console.log("Assessment completed successfully for ID:", id)
       console.log("Store update:", assessmentStorage.debug())
 
+      // Remove from processing set
+      processingAssessments.delete(id);
+
       return NextResponse.json({
         success: true,
         assessment,
       })
     } catch (assessmentError) {
       console.error("Assessment error:", assessmentError)
+
+      // Remove from processing set even if there's an error
+      processingAssessments.delete(id);
 
       // Return a more helpful error
       return NextResponse.json(
@@ -70,6 +92,12 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
   } catch (error) {
     console.error("Assessment route error:", error)
+    
+    // Make sure to remove from processing set if there's an error
+    if (params && params.id) {
+      processingAssessments.delete(params.id);
+    }
+    
     return NextResponse.json(
       {
         error: "Failed to process assessment request",
