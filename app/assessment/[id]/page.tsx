@@ -14,6 +14,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Info } from "lucide-react"
 import type { AssessmentData } from "@/lib/types"
 import { useEmailCollection } from "@/contexts/email-collection-context"
+import type { Industry } from "@/lib/industry-detection"
+import { generateCourseRecommendations, generateFallbackCourseRecommendations } from "@/lib/course-recommendations"
+import { buildUserProfile } from "@/lib/ai-agent"
+import type { RecommendedCourse } from "@/lib/types"
 
 // Loading state component
 function LoadingAssessment() {
@@ -36,6 +40,8 @@ function AssessmentPageContent({ params }: { params: { id: string } }) {
   const [assessment, setAssessment] = useState<AssessmentData | null>(null)
   const [selectedRole, setSelectedRole] = useState<string | null>(null)
   const [emailReceived, setEmailReceived] = useState<string | null>(null)
+  const [customRecommendedCourses, setCustomRecommendedCourses] = useState<RecommendedCourse[] | null>(null)
+  const [isGeneratingCourses, setIsGeneratingCourses] = useState(false)
   const searchParams = useSearchParams()
   const { collectEmail } = useEmailCollection()
 
@@ -148,6 +154,52 @@ function AssessmentPageContent({ params }: { params: { id: string } }) {
     }
   }, [searchParams]);
 
+  const handleCoursesTabClick = async () => {
+    console.log("Course tab clicked, current state:", {
+      hasCustomRecommendations: !!customRecommendedCourses,
+      hasAssessment: !!assessment,
+      isGenerating: isGeneratingCourses
+    });
+
+    // Only generate recommendations if we haven't already and have assessment data
+    if (!customRecommendedCourses && assessment && !isGeneratingCourses) {
+      console.log("Starting course recommendations generation");
+      setIsGeneratingCourses(true)
+      
+      try {
+        // Build user profile from assessment data
+        const userProfile = buildUserProfile(assessment, assessment.industryAnalysis.industry as Industry)
+        console.log("Built user profile:", userProfile);
+        
+        // Generate course recommendations
+        console.log("Calling generateCourseRecommendations...");
+        const recommendations = await generateCourseRecommendations(userProfile)
+        
+        // Store the generated recommendations
+        console.log("Received recommendations:", recommendations);
+        setCustomRecommendedCourses(recommendations)
+      } catch (error) {
+        console.error("Error generating course recommendations:", error)
+        // Use fallback recommendations if AI generation fails
+        if (assessment) {
+          console.log("Using fallback recommendations");
+          const userProfile = buildUserProfile(assessment, assessment.industryAnalysis.industry as Industry)
+          const fallbackRecommendations = generateFallbackCourseRecommendations(userProfile)
+          setCustomRecommendedCourses(fallbackRecommendations)
+        }
+      } finally {
+        setIsGeneratingCourses(false)
+        console.log("Course generation completed");
+      }
+    } else {
+      console.log("Skipping course generation because:", {
+        hasCustomRecommendations: !!customRecommendedCourses,
+        hasAssessment: !!assessment,
+        isGenerating: isGeneratingCourses
+      });
+    }
+  }
+
   return (
     <div className="container mx-auto py-10">
       <div className="max-w-4xl mx-auto">
@@ -190,7 +242,12 @@ function AssessmentPageContent({ params }: { params: { id: string } }) {
                   transition={{ duration: 0.3 }}
                 />
               </TabsTrigger>
-              <TabsTrigger value="courses" id="courses-tab-trigger" className="flex items-center relative group">
+              <TabsTrigger 
+                value="courses" 
+                id="courses-tab-trigger" 
+                className="flex items-center relative group"
+                onClick={handleCoursesTabClick}
+              >
                 <BookOpen className="mr-2 h-4 w-4" />
                 Course Library
                 <motion.span
@@ -214,41 +271,116 @@ function AssessmentPageContent({ params }: { params: { id: string } }) {
             </TabsContent>
             <TabsContent value="courses" className="mt-4">
               <div className="space-y-6">
-                {assessment ? (
-                  <div>
-                    {selectedRole && (
-                      <div className="mb-4 p-4 bg-green-50 border border-green-100 rounded-lg">
-                        <h3 className="text-lg font-medium flex items-center">
-                          <BookOpen className="mr-2 h-5 w-5 text-green-600" />
-                          Courses for {selectedRole}
-                        </h3>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Showing personalized course recommendations for your selected career path.
-                        </p>
-                      </div>
-                    )}
-                    <CourseLibrary
-                      technicalSkills={assessment.technicalSkills}
-                      improvementAreas={assessment.improvementAreas}
-                      industry={assessment.industryAnalysis.industry}
-                      selectedRole={selectedRole}
-                      careerTrajectory={assessment.careerTrajectory}
-                      recommendedCourses={assessment.recommendedCourses}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center p-12">
-                    <div className="flex flex-col items-center space-y-4">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                      <p className="text-muted-foreground">Loading course recommendations...</p>
-                    </div>
-                  </div>
-                )}
+                <CoursesTab assessmentId={params.id} selectedRole={selectedRole} />
               </div>
             </TabsContent>
           </Tabs>
         </AnimatedContainer>
       </div>
+    </div>
+  )
+}
+
+// Add this new component for the Courses tab content
+function CoursesTab({ assessmentId, selectedRole }: { assessmentId: string, selectedRole: string | null }) {
+  const [recommendations, setRecommendations] = useState<RecommendedCourse[] | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [assessment, setAssessment] = useState<AssessmentData | null>(null)
+
+  // Fetch course recommendations when component mounts
+  useEffect(() => {
+    const fetchCourseRecommendations = async () => {
+      try {
+        setLoading(true)
+
+        // First, fetch the assessment data to get technical skills and industry info
+        const assessmentResponse = await fetch(`/api/assess/${assessmentId}`)
+        if (!assessmentResponse.ok) {
+          throw new Error('Failed to fetch assessment data')
+        }
+        
+        const assessmentData = await assessmentResponse.json()
+        if (!assessmentData.success || !assessmentData.assessment) {
+          throw new Error('Invalid assessment data')
+        }
+        
+        setAssessment(assessmentData.assessment)
+        
+        // Then, fetch course recommendations
+        const recommendationsResponse = await fetch(`/api/course-recommendations?id=${assessmentId}`)
+        if (!recommendationsResponse.ok) {
+          throw new Error('Failed to fetch course recommendations')
+        }
+        
+        const recommendationsData = await recommendationsResponse.json()
+        if (!recommendationsData.success) {
+          throw new Error('Failed to generate course recommendations')
+        }
+        
+        setRecommendations(recommendationsData.recommendations)
+        console.log("Course recommendations fetched successfully:", recommendationsData.recommendations)
+      } catch (err) {
+        console.error("Error fetching course recommendations:", err)
+        setError(err instanceof Error ? err.message : 'Unknown error')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCourseRecommendations()
+  }, [assessmentId])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="text-muted-foreground">Loading course recommendations...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-center border border-red-100 bg-red-50 rounded-lg">
+        <p className="text-red-600">Error: {error}</p>
+        <p className="mt-2">Unable to load course recommendations at this time.</p>
+      </div>
+    )
+  }
+
+  if (!assessment) {
+    return (
+      <div className="p-6 text-center border border-yellow-100 bg-yellow-50 rounded-lg">
+        <p className="text-yellow-600">Assessment data not found</p>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      {selectedRole && (
+        <div className="mb-4 p-4 bg-green-50 border border-green-100 rounded-lg">
+          <h3 className="text-lg font-medium flex items-center">
+            <BookOpen className="mr-2 h-5 w-5 text-green-600" />
+            Courses for {selectedRole}
+          </h3>
+          <p className="text-sm text-gray-600 mt-1">
+            Showing personalized course recommendations for your selected career path.
+          </p>
+        </div>
+      )}
+      
+      <CourseLibrary
+        technicalSkills={assessment.technicalSkills}
+        improvementAreas={assessment.improvementAreas}
+        industry={assessment.industryAnalysis.industry as Industry}
+        selectedRole={selectedRole}
+        careerTrajectory={assessment.careerTrajectory}
+        recommendedCourses={recommendations || []}
+      />
     </div>
   )
 }
