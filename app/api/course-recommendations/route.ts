@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { generateCourseRecommendations, generateFallbackCourseRecommendations } from "@/lib/course-recommendations"
 import { buildUserProfile } from "@/lib/ai-agent"
 import type { Industry } from "@/lib/industry-detection"
+import { assessmentStorage } from "@/lib/storage"
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,25 +13,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Assessment ID is required" }, { status: 400 })
     }
     
-    // Get the host from the request
-    const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https'
-    const host = request.headers.get('host') || 'localhost:3000'
-    const baseUrl = `${protocol}://${host}`
+    // Instead of using fetch, directly access the assessment data from storage
+    const storedData = assessmentStorage.get(id)
     
-    // Fetch assessment data with absolute URL
-    const assessmentResponse = await fetch(`${baseUrl}/api/assess/${id}`)
-    
-    if (!assessmentResponse.ok) {
-      return NextResponse.json({ error: "Failed to fetch assessment data" }, { status: 400 })
+    if (!storedData || !storedData.assessment) {
+      console.log("Assessment not found or incomplete for ID:", id)
+      return NextResponse.json({ error: "Assessment not found or incomplete" }, { status: 404 })
     }
     
-    const assessmentData = await assessmentResponse.json()
-    
-    if (!assessmentData.success || !assessmentData.assessment) {
-      return NextResponse.json({ error: "Invalid assessment data" }, { status: 400 })
-    }
-    
-    const assessment = assessmentData.assessment
+    const assessment = storedData.assessment
     
     try {
       // Validate industry from assessment
