@@ -37,11 +37,26 @@ export type PersonalizedQuestion = {
  * Generate a comprehensive user profile from assessment data
  */
 export function buildUserProfile(assessment: any, industry: Industry): UserProfile {
+  // Validate the industry parameter
+  const validIndustries = [
+    'technology', 'marketing', 'finance', 'healthcare', 'design', 
+    'hr', 'sales', 'education', 'legal', 'manufacturing', 'other'
+  ];
+  
+  // Ensure industry is valid or default to 'other'
+  const validatedIndustry = (!industry || !validIndustries.includes(industry)) 
+    ? 'other' as Industry 
+    : industry;
+  
+  if (industry !== validatedIndustry) {
+    console.warn(`Invalid industry "${industry}" provided, defaulting to "other"`);
+  }
+
   // Extract career level from summary or skills
   const careerLevel = extractCareerLevel(assessment.summary, assessment.technicalSkills)
 
   // Extract specialization from skills and summary
-  const specialization = extractSpecialization(assessment.technicalSkills, assessment.summary, industry)
+  const specialization = extractSpecialization(assessment.technicalSkills, assessment.summary, validatedIndustry)
 
   // Extract years of experience
   const experience = extractExperience(assessment.summary)
@@ -52,7 +67,7 @@ export function buildUserProfile(assessment: any, industry: Industry): UserProfi
     softSkills: assessment.softSkills,
     strengths: assessment.strengths,
     improvementAreas: assessment.improvementAreas,
-    industry,
+    industry: validatedIndustry,
     experience,
     careerLevel,
     specialization,
@@ -126,6 +141,12 @@ function extractSpecialization(
     legal: ["corporate", "litigation", "intellectual property", "compliance", "contracts", "regulatory"],
     manufacturing: ["production", "quality", "supply chain", "operations", "maintenance", "process improvement"],
     other: ["general", "administration", "management", "consulting", "research", "operations"],
+  }
+
+  // Validate industry to avoid errors
+  if (!industry || !industryDomains[industry]) {
+    console.warn(`Invalid industry: ${industry}, defaulting to "other"`);
+    industry = "other" as Industry;
   }
 
   // Check each skill against domains for this industry

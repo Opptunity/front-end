@@ -19,12 +19,18 @@ import {
   BookOpen,
   Zap,
   Info,
+  GraduationCap,
+  Calendar,
+  Code,
+  CheckCircle
 } from "lucide-react"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { motion, AnimatePresence } from "framer-motion"
 import { AnimatedContainer, AnimatedList, AnimatedListItem } from "./animated-container"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { LearningPathStep } from "@/lib/learning-pathway-types"
+import { CVImprovement } from "@/lib/cv-improvement-prompt"
 
 type SkillLevel = "Beginner" | "Intermediate" | "Advanced" | "Expert" | "Unknown"
 
@@ -114,6 +120,12 @@ export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSele
   const [selectedRole, setSelectedRole] = useState<string | null>(null)
   // Add state for role-specific recommendations
   const [roleRecommendations, setRoleRecommendations] = useState<RoleRecommendations | null>(null)
+  const [learningPathway, setLearningPathway] = useState<LearningPathStep[] | null>(null)
+  const [pathwayLoading, setPathwayLoading] = useState(false)
+  const [pathwayError, setPathwayError] = useState<string | null>(null)
+  const [cvImprovements, setCVImprovements] = useState<CVImprovement[] | null>(null)
+  const [cvImprovementsLoading, setCVImprovementsLoading] = useState(false)
+  const [cvImprovementsError, setCVImprovementsError] = useState<string | null>(null)
 
   const fetchAssessment = async (regenerate = false) => {
     try {
@@ -176,14 +188,12 @@ export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSele
     }
   }, [id, retryCount]);
 
-  // Generate role-specific recommendations when a role is selected
+  // Effect to fetch CV improvements when assessment is loaded
   useEffect(() => {
-    if (selectedRole && assessment) {
-      generateRoleRecommendations(selectedRole, assessment);
-    } else {
-      setRoleRecommendations(null);
+    if (assessment) {
+      fetchCVImprovements();
     }
-  }, [selectedRole, assessment]);
+  }, [assessment]);
 
   // Function to generate role-specific recommendations
   const generateRoleRecommendations = (role: string, assessment: AssessmentData) => {
@@ -239,11 +249,77 @@ export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSele
   const handleRoleSelect = (role: string) => {
     const newSelectedRole = role === selectedRole ? null : role;
     setSelectedRole(newSelectedRole);
+    
+    // Clear existing data when role is deselected
+    if (!newSelectedRole) {
+      setLearningPathway(null);
+      setRoleRecommendations(null);
+    } else {
+      // Fetch learning pathway for the selected role
+      fetchLearningPathway(role);
+      
+      // Generate role-specific recommendations
+      if (assessment) {
+        generateRoleRecommendations(role, assessment);
+      }
+    }
+    
     // Call the parent's onRoleSelect if provided
     if (onRoleSelect) {
       onRoleSelect(newSelectedRole);
     }
   };
+
+  // Add this function to fetch the learning pathway
+  const fetchLearningPathway = async (role: string) => {
+    try {
+      setPathwayLoading(true)
+      setPathwayError(null)
+
+      const response = await fetch(`/api/learning-pathway?assessmentId=${id}&selectedRole=${encodeURIComponent(role)}&steps=3`)
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch learning pathway: ${response.status}`)
+      }
+
+      const data = await response.json()
+      setLearningPathway(data.pathway)
+    } catch (error) {
+      console.error("Error fetching learning pathway:", error)
+      setPathwayError(error instanceof Error ? error.message : "Failed to load learning pathway")
+      setLearningPathway(null)
+    } finally {
+      setPathwayLoading(false)
+    }
+  }
+
+  // Function to fetch CV improvements
+  const fetchCVImprovements = async () => {
+    try {
+      setCVImprovementsLoading(true)
+      setCVImprovementsError(null)
+
+      const response = await fetch(`/api/cv-improvements?assessmentId=${id}`)
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch CV improvements: ${response.status}`)
+      }
+
+      const data = await response.json()
+      setCVImprovements(data.improvements)
+      
+      // Check if there was an error but the API still returned fallback improvements
+      if (data.isError) {
+        setCVImprovementsError(data.message || "Using fallback CV improvements")
+      }
+    } catch (error) {
+      console.error("Error fetching CV improvements:", error)
+      setCVImprovementsError(error instanceof Error ? error.message : "Failed to load CV improvements")
+      setCVImprovements(null)
+    } finally {
+      setCVImprovementsLoading(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -376,10 +452,10 @@ export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSele
               transition={{ duration: 0.3 }}
             />
           </TabsTrigger>
-          <TabsTrigger value="industry" className="relative group">
+          <TabsTrigger value="cv-improvements" className="relative group">
             <div className="flex items-center">
-              <Briefcase className="mr-2 h-4 w-4" />
-              <span>Industry</span>
+              <FileText className="mr-2 h-4 w-4" />
+              <span>CV Improvements</span>
             </div>
             <motion.span
               className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full origin-left"
@@ -567,61 +643,108 @@ export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSele
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {selectedRole && roleRecommendations ? (
+                {selectedRole ? (
                   <div className="space-y-6">
-                    {/* Skills to focus on */}
-                    <div className="space-y-2">
-                      <h3 className="font-medium">Skills to Focus On</h3>
-                      <ul className="space-y-1">
-                        {roleRecommendations.skills.map((skill, index) => (
-                          <li key={index} className="flex items-start">
-                            <CheckCircle2 className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                            <span>{skill}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    
-                    {/* Recommended courses */}
-                    <div className="space-y-2">
-                      <h3 className="font-medium">Recommended Courses</h3>
-                      <ul className="space-y-1">
-                        {roleRecommendations.courses.map((course, index) => (
-                          <li key={index} className="flex items-start">
-                            <BookOpen className="h-4 w-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
-                            <span>{course}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      <div className="mt-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            // Dispatch a custom event to switch tabs
-                            const event = new CustomEvent('switchTab', { detail: { tab: 'courses' } });
-                            window.dispatchEvent(event);
-                          }}
-                          className="text-xs"
-                        >
-                          <BookOpen className="h-3 w-3 mr-1" />
-                          View All Courses
-                        </Button>
+                    {/* Learning Pathway */}
+                    {pathwayLoading ? (
+                      <div className="flex justify-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                       </div>
-                    </div>
-                    
-                    {/* Recommended certifications */}
-                    <div className="space-y-2">
-                      <h3 className="font-medium">Recommended Certifications</h3>
-                      <ul className="space-y-1">
-                        {roleRecommendations.certifications.map((cert, index) => (
-                          <li key={index} className="flex items-start">
-                            <Award className="h-4 w-4 text-amber-500 mr-2 mt-0.5 flex-shrink-0" />
-                            <span>{cert}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                    ) : pathwayError ? (
+                      <Alert variant="destructive" className="mb-4">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Error</AlertTitle>
+                        <AlertDescription>{pathwayError}</AlertDescription>
+                      </Alert>
+                    ) : learningPathway && learningPathway.length > 0 ? (
+                      <div className="space-y-4">
+                        <h3 className="font-medium flex items-center text-lg">
+                          <GraduationCap className="h-5 w-5 text-primary mr-2" />
+                          Learning Pathway
+                        </h3>
+                        <div className="space-y-4">
+                          {learningPathway.map((step, stepIndex) => (
+                            <div key={stepIndex} className="border rounded-lg p-4">
+                              <h4 className="font-medium flex items-center">
+                                <Calendar className="h-4 w-4 mr-2 text-gray-500" />
+                                <span>Step {stepIndex + 1}: {step.title.replace(/^Step \d+: /, '')}</span>
+                                <span className="text-sm text-gray-500 ml-2">({step.timeframe})</span>
+                              </h4>
+                              <p className="text-sm text-gray-600 mt-2">{step.description}</p>
+                              
+                              <div className="mt-3 space-y-3">
+                                {/* Skills to acquire */}
+                                <div>
+                                  <h5 className="text-sm font-medium text-gray-700 flex items-center">
+                                    <TrendingUp className="h-3 w-3 mr-1 text-green-600" />
+                                    Skills to Acquire
+                                  </h5>
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {step.skillsToAcquire.map((skill, i) => (
+                                      <Badge key={i} variant="outline" className="text-xs bg-green-50">
+                                        {skill}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                                
+                                {/* Courses */}
+                                <div>
+                                  <h5 className="text-sm font-medium text-gray-700 flex items-center">
+                                    <BookOpen className="h-3 w-3 mr-1 text-blue-600" />
+                                    Recommended Courses
+                                  </h5>
+                                  <div className="space-y-1 mt-1">
+                                    {step.courses.slice(0, 2).map((course, i) => (
+                                      <div key={i} className="text-xs">
+                                        <span className="font-medium">{course.title}</span> 
+                                        <span className="text-gray-500"> ({course.provider})</span>
+                                      </div>
+                                    ))}
+                                    {step.courses.length > 2 && (
+                                      <div className="text-xs text-gray-500">
+                                        + {step.courses.length - 2} more courses
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                {/* Certifications if available */}
+                                {step.certifications && step.certifications.length > 0 && (
+                                  <div>
+                                    <h5 className="text-sm font-medium text-gray-700 flex items-center">
+                                      <Award className="h-3 w-3 mr-1 text-amber-600" />
+                                      Certifications
+                                    </h5>
+                                    <div className="text-xs mt-1">
+                                      {step.certifications[0].name}
+                                      {step.certifications.length > 1 && (
+                                        <span className="text-gray-500"> + {step.certifications.length - 1} more</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex justify-end">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              // Dispatch a custom event to switch tabs
+                              const event = new CustomEvent('switchTab', { detail: { tab: 'courses' } });
+                              window.dispatchEvent(event);
+                            }}
+                            className="text-xs"
+                          >
+                            <TrendingUp className="h-3 w-3 mr-1" />
+                            Explore Learning Resources
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 ) : (
                   <AnimatedList className="space-y-3">
@@ -764,48 +887,77 @@ export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSele
             </Card>
           </TabsContent>
 
-          <TabsContent value="industry" className="mt-6 space-y-6">
+          <TabsContent value="cv-improvements" className="mt-6 space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
-                  <Briefcase className="mr-2 h-5 w-5" />
-                  Industry Analysis
+                  <FileText className="mr-2 h-5 w-5" />
+                  CV Improvements
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <h3 className="font-medium mb-2">Industry</h3>
-                  <Badge className="bg-blue-100 text-blue-800">{assessment.industryAnalysis.industry}</Badge>
-                </div>
-
-                <div>
-                  <h3 className="font-medium mb-2">Skills Alignment</h3>
-                  <p className="text-sm">{assessment.industryAnalysis.alignment}</p>
-                </div>
-
-                <div>
-                  <h3 className="font-medium mb-2">Industry Trends</h3>
-                  <ul className="space-y-1">
-                    {assessment.industryAnalysis.trends.map((trend, index) => (
-                      <li key={index} className="text-sm flex items-start">
-                        <Lightbulb className="h-4 w-4 text-amber-500 mr-2 mt-0.5 flex-shrink-0" />
-                        <span>{trend}</span>
-                      </li>
+              <CardContent>
+                {cvImprovementsLoading ? (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : cvImprovementsError && !cvImprovements ? (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{cvImprovementsError}</AlertDescription>
+                  </Alert>
+                ) : cvImprovements && cvImprovements.length > 0 ? (
+                  <div className="space-y-6">
+                    {cvImprovementsError && (
+                      <Alert className="mb-4">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Note</AlertTitle>
+                        <AlertDescription>{cvImprovementsError}</AlertDescription>
+                      </Alert>
+                    )}
+                    {cvImprovements.map((improvement, index) => (
+                      <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div className="mb-2">
+                          <Badge className="bg-blue-100 text-blue-800">{improvement.category}</Badge>
+                        </div>
+                        <h3 className="font-medium text-lg mb-2">{improvement.title}</h3>
+                        <p className="text-sm mb-3">{improvement.description}</p>
+                        
+                        <div className="mb-3">
+                          <h4 className="font-medium text-sm mb-1">Suggested Changes:</h4>
+                          <ul className="space-y-1">
+                            {improvement.suggestedChanges.map((change, i) => (
+                              <li key={i} className="text-sm flex items-start">
+                                <CheckCircle2 className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                                <span>{change}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        
+                        <div className="mb-3">
+                          <h4 className="font-medium text-sm mb-1">Impact:</h4>
+                          <p className="text-sm">{improvement.impact}</p>
+                        </div>
+                        
+                        {improvement.example && (
+                          <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
+                            <h4 className="font-medium text-sm mb-1">Example:</h4>
+                            <p className="text-sm italic">{improvement.example}</p>
+                          </div>
+                        )}
+                      </div>
                     ))}
-                  </ul>
-                </div>
-
-                <div>
-                  <h3 className="font-medium mb-2">Key Insights</h3>
-                  <ul className="space-y-1">
-                    {assessment.industryAnalysis.keyInsights.map((insight, index) => (
-                      <li key={index} className="text-sm flex items-start">
-                        <Brain className="h-4 w-4 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
-                        <span>{insight}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                  </div>
+                ) : (
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>No CV improvements found</AlertTitle>
+                    <AlertDescription>
+                      We couldn't generate any CV improvements. Please try again later.
+                    </AlertDescription>
+                  </Alert>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
