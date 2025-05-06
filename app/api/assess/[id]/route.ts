@@ -47,16 +47,22 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     // Otherwise, perform the assessment
     try {
       const assessment = await assessSkills(storedData.text)
+      
+      // Add the CV text to the assessment object for use by other APIs
+      const assessmentWithCVText = {
+        ...assessment,
+        cvText: storedData.text,  // Include the original CV text
+      };
 
       // Store the assessment result
-      assessmentStorage.set(id, { ...storedData, assessment })
+      assessmentStorage.set(id, { ...storedData, assessment: assessmentWithCVText })
 
       // Store the results in Supabase as well
       try {
         // Try to get Supabase UUID if we're using a local ID
         const supabaseId = await getSupabaseId(id)
         if (supabaseId) {
-          await updateAssessmentResults(supabaseId, assessment)
+          await updateAssessmentResults(supabaseId, assessmentWithCVText)
         } else {
           console.log("No valid Supabase ID found for local ID:", id)
         }
@@ -72,7 +78,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
       return NextResponse.json({
         success: true,
-        assessment,
+        assessment: assessmentWithCVText,
       })
     } catch (assessmentError) {
       console.error("Assessment error:", assessmentError)

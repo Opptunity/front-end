@@ -963,3 +963,53 @@ export function getExpertSourceDescription(source: string): { name: string; desc
 
   return sources[source] || sources["general"]
 }
+
+/**
+ * Fetch CV improvement suggestions from the API
+ * 
+ * @param assessmentId ID of the assessment to use for context (optional)
+ * @param cvText Raw CV/resume text (required if not using assessment ID)
+ * @returns Array of CV improvement suggestions
+ */
+export async function fetchCVImprovements(params: { 
+  assessmentId?: string, 
+  cvText?: string 
+}): Promise<any> {
+  try {
+    const { assessmentId, cvText } = params;
+    
+    // If we have an assessment ID, use the GET endpoint
+    if (assessmentId) {
+      const response = await fetch(`/api/cv-improvements?assessmentId=${encodeURIComponent(assessmentId)}`);
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data.improvements;
+    } 
+    // Otherwise, use the POST endpoint with raw CV text
+    else if (cvText) {
+      const response = await fetch('/api/cv-improvements', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ cvText }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data.improvements;
+    } else {
+      throw new Error('Either assessmentId or cvText must be provided');
+    }
+  } catch (error) {
+    console.error('Error fetching CV improvements:', error);
+    throw error;
+  }
+}

@@ -30,6 +30,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { AnimatedContainer, AnimatedList, AnimatedListItem } from "./animated-container"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { LearningPathStep } from "@/lib/learning-pathway-types"
+import { CVImprovement } from "@/lib/cv-improvement-prompt"
 
 type SkillLevel = "Beginner" | "Intermediate" | "Advanced" | "Expert" | "Unknown"
 
@@ -122,6 +123,9 @@ export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSele
   const [learningPathway, setLearningPathway] = useState<LearningPathStep[] | null>(null)
   const [pathwayLoading, setPathwayLoading] = useState(false)
   const [pathwayError, setPathwayError] = useState<string | null>(null)
+  const [cvImprovements, setCVImprovements] = useState<CVImprovement[] | null>(null)
+  const [cvImprovementsLoading, setCVImprovementsLoading] = useState(false)
+  const [cvImprovementsError, setCVImprovementsError] = useState<string | null>(null)
 
   const fetchAssessment = async (regenerate = false) => {
     try {
@@ -183,6 +187,13 @@ export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSele
       window.history.replaceState({}, document.title, newUrl);
     }
   }, [id, retryCount]);
+
+  // Effect to fetch CV improvements when assessment is loaded
+  useEffect(() => {
+    if (assessment) {
+      fetchCVImprovements();
+    }
+  }, [assessment]);
 
   // Function to generate role-specific recommendations
   const generateRoleRecommendations = (role: string, assessment: AssessmentData) => {
@@ -261,34 +272,54 @@ export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSele
 
   // Add this function to fetch the learning pathway
   const fetchLearningPathway = async (role: string) => {
-    if (!id || !role) return;
-    
-    setPathwayLoading(true);
-    setPathwayError(null);
-    
     try {
-      const response = await fetch(
-        `/api/learning-pathway?assessmentId=${id}&selectedRole=${encodeURIComponent(role)}`
-      );
-      
+      setPathwayLoading(true)
+      setPathwayError(null)
+
+      const response = await fetch(`/api/learning-pathway?assessmentId=${id}&selectedRole=${encodeURIComponent(role)}&steps=3`)
+
       if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
+        throw new Error(`Failed to fetch learning pathway: ${response.status}`)
       }
-      
-      const data = await response.json();
-      
-      if (data.pathway && Array.isArray(data.pathway)) {
-        setLearningPathway(data.pathway);
-      } else {
-        throw new Error("Invalid learning pathway data");
-      }
-    } catch (err) {
-      console.error("Failed to fetch learning pathway:", err);
-      setPathwayError("Failed to load learning pathway. Please try again.");
+
+      const data = await response.json()
+      setLearningPathway(data.pathway)
+    } catch (error) {
+      console.error("Error fetching learning pathway:", error)
+      setPathwayError(error instanceof Error ? error.message : "Failed to load learning pathway")
+      setLearningPathway(null)
     } finally {
-      setPathwayLoading(false);
+      setPathwayLoading(false)
     }
-  };
+  }
+
+  // Function to fetch CV improvements
+  const fetchCVImprovements = async () => {
+    try {
+      setCVImprovementsLoading(true)
+      setCVImprovementsError(null)
+
+      const response = await fetch(`/api/cv-improvements?assessmentId=${id}`)
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch CV improvements: ${response.status}`)
+      }
+
+      const data = await response.json()
+      setCVImprovements(data.improvements)
+      
+      // Check if there was an error but the API still returned fallback improvements
+      if (data.isError) {
+        setCVImprovementsError(data.message || "Using fallback CV improvements")
+      }
+    } catch (error) {
+      console.error("Error fetching CV improvements:", error)
+      setCVImprovementsError(error instanceof Error ? error.message : "Failed to load CV improvements")
+      setCVImprovements(null)
+    } finally {
+      setCVImprovementsLoading(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -421,10 +452,10 @@ export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSele
               transition={{ duration: 0.3 }}
             />
           </TabsTrigger>
-          <TabsTrigger value="industry" className="relative group">
+          <TabsTrigger value="cv-improvements" className="relative group">
             <div className="flex items-center">
-              <Briefcase className="mr-2 h-4 w-4" />
-              <span>Industry</span>
+              <FileText className="mr-2 h-4 w-4" />
+              <span>CV Improvements</span>
             </div>
             <motion.span
               className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full origin-left"
@@ -856,48 +887,77 @@ export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSele
             </Card>
           </TabsContent>
 
-          <TabsContent value="industry" className="mt-6 space-y-6">
+          <TabsContent value="cv-improvements" className="mt-6 space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
-                  <Briefcase className="mr-2 h-5 w-5" />
-                  Industry Analysis
+                  <FileText className="mr-2 h-5 w-5" />
+                  CV Improvements
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <h3 className="font-medium mb-2">Industry</h3>
-                  <Badge className="bg-blue-100 text-blue-800">{assessment.industryAnalysis.industry}</Badge>
-                </div>
-
-                <div>
-                  <h3 className="font-medium mb-2">Skills Alignment</h3>
-                  <p className="text-sm">{assessment.industryAnalysis.alignment}</p>
-                </div>
-
-                <div>
-                  <h3 className="font-medium mb-2">Industry Trends</h3>
-                  <ul className="space-y-1">
-                    {assessment.industryAnalysis.trends.map((trend, index) => (
-                      <li key={index} className="text-sm flex items-start">
-                        <Lightbulb className="h-4 w-4 text-amber-500 mr-2 mt-0.5 flex-shrink-0" />
-                        <span>{trend}</span>
-                      </li>
+              <CardContent>
+                {cvImprovementsLoading ? (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : cvImprovementsError && !cvImprovements ? (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{cvImprovementsError}</AlertDescription>
+                  </Alert>
+                ) : cvImprovements && cvImprovements.length > 0 ? (
+                  <div className="space-y-6">
+                    {cvImprovementsError && (
+                      <Alert className="mb-4">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Note</AlertTitle>
+                        <AlertDescription>{cvImprovementsError}</AlertDescription>
+                      </Alert>
+                    )}
+                    {cvImprovements.map((improvement, index) => (
+                      <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div className="mb-2">
+                          <Badge className="bg-blue-100 text-blue-800">{improvement.category}</Badge>
+                        </div>
+                        <h3 className="font-medium text-lg mb-2">{improvement.title}</h3>
+                        <p className="text-sm mb-3">{improvement.description}</p>
+                        
+                        <div className="mb-3">
+                          <h4 className="font-medium text-sm mb-1">Suggested Changes:</h4>
+                          <ul className="space-y-1">
+                            {improvement.suggestedChanges.map((change, i) => (
+                              <li key={i} className="text-sm flex items-start">
+                                <CheckCircle2 className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                                <span>{change}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        
+                        <div className="mb-3">
+                          <h4 className="font-medium text-sm mb-1">Impact:</h4>
+                          <p className="text-sm">{improvement.impact}</p>
+                        </div>
+                        
+                        {improvement.example && (
+                          <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
+                            <h4 className="font-medium text-sm mb-1">Example:</h4>
+                            <p className="text-sm italic">{improvement.example}</p>
+                          </div>
+                        )}
+                      </div>
                     ))}
-                  </ul>
-                </div>
-
-                <div>
-                  <h3 className="font-medium mb-2">Key Insights</h3>
-                  <ul className="space-y-1">
-                    {assessment.industryAnalysis.keyInsights.map((insight, index) => (
-                      <li key={index} className="text-sm flex items-start">
-                        <Brain className="h-4 w-4 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
-                        <span>{insight}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                  </div>
+                ) : (
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>No CV improvements found</AlertTitle>
+                    <AlertDescription>
+                      We couldn't generate any CV improvements. Please try again later.
+                    </AlertDescription>
+                  </Alert>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
