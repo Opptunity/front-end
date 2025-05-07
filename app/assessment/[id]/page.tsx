@@ -361,7 +361,7 @@ function CoursesTab({ assessmentId, selectedRole }: { assessmentId: string, sele
 
   return (
     <div>
-      {selectedRole && (
+     {/* {selectedRole && (
         <div className="mb-4 p-4 bg-green-50 border border-green-100 rounded-lg">
           <h3 className="text-lg font-medium flex items-center">
             <BookOpen className="mr-2 h-5 w-5 text-green-600" />
@@ -372,6 +372,7 @@ function CoursesTab({ assessmentId, selectedRole }: { assessmentId: string, sele
           </p>
         </div>
       )}
+      */}
       
       <CourseLibrary
         technicalSkills={assessment.technicalSkills}
