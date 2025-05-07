@@ -116,6 +116,7 @@ export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSele
   const [error, setError] = useState<string | null>(null)
   const [retryCount, setRetryCount] = useState(0)
   const [isRegenerating, setIsRegenerating] = useState(false)
+  const [debugInfo, setDebugInfo] = useState<string | null>(null)
   // Add state for selected role
   const [selectedRole, setSelectedRole] = useState<string | null>(null)
   // Add state for role-specific recommendations
@@ -149,23 +150,61 @@ export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSele
         setIsRegenerating(false);
       }
 
-      // Fetch the assessment results
-      const response = await fetch(`/api/assess/${id}`)
+      // Fetch the assessment results with retry logic
+      const fetchWithRetry = async (retries = 3, delay = 2000) => {
+        try {
+          // Fetch the assessment results
+          const response = await fetch(`/api/assess/${id}`)
+          
+          // Handle processing status (202)
+          if (response.status === 202) {
+            const data = await response.json().catch(() => ({}))
+            console.log("Assessment is still processing:", data)
+            
+            if (retries > 0) {
+              // Wait and retry
+              setDebugInfo ? setDebugInfo(`Assessment is being processed, retrying in ${delay/1000} seconds...`) : null
+              console.log(`Retrying assessment fetch in ${delay/1000} seconds... (${retries} retries left)`)
+              
+              return new Promise(resolve => {
+                setTimeout(() => resolve(fetchWithRetry(retries - 1, delay)), delay)
+              })
+            } else {
+              throw new Error("Assessment is still processing after multiple retries")
+            }
+          }
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            throw new Error(
+              errorData.error || errorData.details || `Server error: ${response.status} ${response.statusText}`,
+            )
+          }
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(
-          errorData.error || errorData.details || `Server error: ${response.status} ${response.statusText}`,
-        )
+          const data = await response.json()
+
+          if (!data.success) {
+            throw new Error(data.error || data.details || "Failed to get assessment results")
+          }
+
+          return data.assessment
+        } catch (err) {
+          if (retries > 0 && err instanceof Error && err.message.includes("processing")) {
+            // Only retry for processing-related errors
+            console.log(`Retrying due to processing error: ${err.message}`)
+            
+            return new Promise(resolve => {
+              setTimeout(() => resolve(fetchWithRetry(retries - 1, delay)), delay)
+            })
+          }
+          
+          throw err
+        }
       }
-
-      const data = await response.json()
-
-      if (!data.success) {
-        throw new Error(data.error || data.details || "Failed to get assessment results")
-      }
-
-      setAssessment(data.assessment)
+      
+      // Start the retry process
+      const assessmentData = await fetchWithRetry()
+      setAssessment(assessmentData)
     } catch (err) {
       console.error("Error fetching assessment:", err)
       setError(err instanceof Error ? err.message : "Failed to load assessment results")
@@ -336,45 +375,29 @@ export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSele
           <CardHeader>
             <CardTitle>Processing your CV</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex flex-col items-center justify-center py-8">
-              <motion.div
-                className="flex items-center space-x-2 mb-4"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5 }}
-              >
-                <motion.div
-                  className="w-3 h-3 bg-blue-500 rounded-full"
-                  animate={{ y: [0, -10, 0] }}
-                  transition={{ repeat: Number.POSITIVE_INFINITY, duration: 0.8, ease: "easeInOut" }}
-                ></motion.div>
-                <motion.div
-                  className="w-3 h-3 bg-blue-500 rounded-full"
-                  animate={{ y: [0, -10, 0] }}
-                  transition={{ repeat: Number.POSITIVE_INFINITY, duration: 0.8, ease: "easeInOut", delay: 0.15 }}
-                ></motion.div>
-                <motion.div
-                  className="w-3 h-3 bg-blue-500 rounded-full"
-                  animate={{ y: [0, -10, 0] }}
-                  transition={{ repeat: Number.POSITIVE_INFINITY, duration: 0.8, ease: "easeInOut", delay: 0.3 }}
-                ></motion.div>
-              </motion.div>
-              <motion.p
-                className="text-gray-500"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-              >
-                {isRegenerating 
-                  ? "Regenerating your assessment report with latest test results..."
-                  : "Our AI is analyzing your CV and generating a detailed skills assessment. This may take a minute..."}
-              </motion.p>
+          <CardContent className="flex flex-col items-center justify-center p-8">
+            <div className="flex flex-col items-center space-y-6">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+              <div className="text-center space-y-2">
+                <p className="text-muted-foreground">Your CV is being analyzed by our AI</p>
+                <p className="text-sm text-muted-foreground">This might take a minute or two</p>
+              </div>
+              {retryCount > 0 && (
+                <Alert className="mt-4">
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    Retrying assessment loading... 
+                    <span className="text-sm text-muted-foreground ml-1">
+                      (Attempt {retryCount + 1})
+                    </span>
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   if (error) {
