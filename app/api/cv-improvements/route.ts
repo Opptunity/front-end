@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { generateCVImprovements, generateFallbackCVImprovements } from "@/lib/cv-improvement-prompt"
 import { buildUserProfile } from "@/lib/ai-agent"
 import { assessmentStorage } from "@/lib/storage"
+import { cvImprovementsCache } from "@/lib/cv-improvements-cache"
 
 /**
  * GET endpoint to retrieve CV improvement suggestions
@@ -18,6 +19,16 @@ export async function GET(request: NextRequest) {
         { error: "Missing assessment ID parameter" },
         { status: 400 }
       )
+    }
+    
+    // Check if we have cached improvements for this assessment
+    const cachedImprovements = cvImprovementsCache.get(assessmentId)
+    if (cachedImprovements) {
+      console.log(`Using cached CV improvements for Assessment ID: ${assessmentId}`)
+      return NextResponse.json({
+        improvements: cachedImprovements,
+        fromCache: true
+      })
     }
     
     // Fetch the assessment
@@ -58,6 +69,9 @@ export async function GET(request: NextRequest) {
       
       // Generate CV improvement suggestions
       const improvements = await generateCVImprovements(cvText, userProfile);
+      
+      // Cache the improvements for future use
+      cvImprovementsCache.set(assessmentId, improvements);
       
       // Return the generated suggestions
       return NextResponse.json({
@@ -106,10 +120,18 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // If assessment ID is provided, use additional context from the assessment
-    let userProfile = undefined
-    
+    // If assessment ID is provided, check cache and use additional context
     if (assessmentId) {
+      // Check if we have cached improvements for this assessment
+      const cachedImprovements = cvImprovementsCache.get(assessmentId)
+      if (cachedImprovements) {
+        console.log(`Using cached CV improvements for Assessment ID: ${assessmentId}`)
+        return NextResponse.json({
+          improvements: cachedImprovements,
+          fromCache: true
+        })
+      }
+      
       const storedData = assessmentStorage.get(assessmentId)
       
       if (storedData && storedData.assessment) {
@@ -120,10 +142,21 @@ export async function POST(request: NextRequest) {
               ? storedData.assessment.industryAnalysis.industry
               : 'other';
           
-          userProfile = buildUserProfile(
+          const userProfile = buildUserProfile(
             storedData.assessment, 
             validIndustry
           )
+          
+          // Generate CV improvement suggestions
+          const improvements = await generateCVImprovements(cvText, userProfile)
+          
+          // Cache the improvements if we have an assessment ID
+          cvImprovementsCache.set(assessmentId, improvements);
+          
+          // Return the generated suggestions
+          return NextResponse.json({
+            improvements
+          })
         } catch (profileError) {
           console.error("Error building user profile:", profileError);
           // Continue without a user profile
@@ -132,7 +165,12 @@ export async function POST(request: NextRequest) {
     }
     
     // Generate CV improvement suggestions
-    const improvements = await generateCVImprovements(cvText, userProfile)
+    const improvements = await generateCVImprovements(cvText)
+    
+    // Cache the improvements if we have an assessment ID
+    if (assessmentId) {
+      cvImprovementsCache.set(assessmentId, improvements);
+    }
     
     // Return the generated suggestions
     return NextResponse.json({
