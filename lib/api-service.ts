@@ -980,6 +980,7 @@ export async function fetchCVImprovements(params: {
     
     // If we have an assessment ID, use the GET endpoint
     if (assessmentId) {
+      console.log("Fetching CV improvements for assessment ID:", assessmentId);
       const response = await fetch(`/api/cv-improvements?assessmentId=${encodeURIComponent(assessmentId)}`);
       
       if (!response.ok) {
@@ -987,10 +988,16 @@ export async function fetchCVImprovements(params: {
       }
       
       const data = await response.json();
+      if (data.fromCache) {
+        console.log("Retrieved CV improvements from cache for assessment ID:", assessmentId);
+      } else {
+        console.log("Generated new CV improvements for assessment ID:", assessmentId);
+      }
       return data.improvements;
     } 
     // Otherwise, use the POST endpoint with raw CV text
     else if (cvText) {
+      console.log("Generating CV improvements from raw CV text");
       const response = await fetch('/api/cv-improvements', {
         method: 'POST',
         headers: {
@@ -1004,6 +1011,11 @@ export async function fetchCVImprovements(params: {
       }
       
       const data = await response.json();
+      if (data.fromCache) {
+        console.log("Retrieved CV improvements from cache");
+      } else {
+        console.log("Generated new CV improvements");
+      }
       return data.improvements;
     } else {
       throw new Error('Either assessmentId or cvText must be provided');

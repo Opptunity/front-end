@@ -299,6 +299,7 @@ export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSele
       setCVImprovementsLoading(true)
       setCVImprovementsError(null)
 
+      console.log(`Fetching CV improvements for assessment ID: ${id}`)
       const response = await fetch(`/api/cv-improvements?assessmentId=${id}`)
 
       if (!response.ok) {
@@ -307,6 +308,13 @@ export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSele
 
       const data = await response.json()
       setCVImprovements(data.improvements)
+      
+      // Check if data came from cache
+      if (data.fromCache) {
+        console.log(`Retrieved CV improvements from cache for assessment ID: ${id}`)
+      } else {
+        console.log(`Generated new CV improvements for assessment ID: ${id}`)
+      }
       
       // Check if there was an error but the API still returned fallback improvements
       if (data.isError) {
