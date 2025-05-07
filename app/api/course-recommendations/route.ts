@@ -3,6 +3,7 @@ import { generateCourseRecommendations, generateFallbackCourseRecommendations } 
 import { buildUserProfile } from "@/lib/ai-agent"
 import type { Industry } from "@/lib/industry-detection"
 import { assessmentStorage } from "@/lib/storage"
+import { courseRecommendationsCache } from "@/lib/course-recommendations-cache"
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,6 +14,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Assessment ID is required" }, { status: 400 })
     }
     
+    // Check if we have cached recommendations for this assessment
+    const cachedRecommendations = courseRecommendationsCache.get(id)
+    if (cachedRecommendations) {
+      console.log(`Using cached course recommendations for Assessment ID: ${id}`)
+      return NextResponse.json({
+        success: true,
+        recommendations: cachedRecommendations,
+        fromCache: true
+      })
+    }
+    
+    // No cache hit, proceed with generating recommendations
     // Instead of using fetch, directly access the assessment data from storage
     const storedData = assessmentStorage.get(id)
     
@@ -39,9 +52,13 @@ export async function GET(request: NextRequest) {
       // Generate course recommendations directly
       const recommendations = await generateCourseRecommendations(userProfile)
       
+      // Store the recommendations in cache for future requests
+      courseRecommendationsCache.set(id, recommendations)
+      
       return NextResponse.json({
         success: true,
         recommendations,
+        fromCache: false
       })
     } catch (error) {
       console.error("Error generating AI recommendations:", error)
@@ -52,10 +69,14 @@ export async function GET(request: NextRequest) {
         const userProfile = buildUserProfile(assessment, "other" as Industry)
         const fallbackRecommendations = generateFallbackCourseRecommendations(userProfile)
         
+        // Cache even fallback recommendations
+        courseRecommendationsCache.set(id, fallbackRecommendations)
+        
         return NextResponse.json({
           success: true,
           recommendations: fallbackRecommendations,
-          fallback: true
+          fallback: true,
+          fromCache: false
         })
       } catch (fallbackError) {
         console.error("Even fallback recommendations failed:", fallbackError)

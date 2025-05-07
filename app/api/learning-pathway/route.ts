@@ -3,6 +3,7 @@ import { createLearningPathwayPrompt, generateRoleSpecificLearningPathway, compa
 import { LearningPathStep, PathwayCommonalities, UserProfile } from "@/lib/learning-pathway-types"
 import { buildUserProfile } from "@/lib/ai-agent"
 import { assessmentStorage } from "@/lib/storage"
+import { learningPathwayCache } from "@/lib/learning-pathway-cache"
 
 /**
  * GET endpoint to retrieve a learning pathway for a specific role
@@ -30,6 +31,17 @@ export async function GET(request: NextRequest) {
       )
     }
     
+    // Check if we have a cached pathway for this assessment, role, and steps count
+    const cachedPathway = learningPathwayCache.get(assessmentId, selectedRole, stepsCount)
+    if (cachedPathway) {
+      console.log(`Using cached ${stepsCount}-step learning pathway for ${selectedRole}`)
+      return NextResponse.json({
+        role: selectedRole,
+        pathway: cachedPathway,
+        fromCache: true
+      })
+    }
+    
     // Fetch the assessment
     const storedData = assessmentStorage.get(assessmentId)
     
@@ -55,16 +67,21 @@ export async function GET(request: NextRequest) {
     }
     
     // Generate learning pathway for the selected role
+    console.log(`Generating ${stepsCount}-step learning pathway for ${selectedRole}`)
     const learningPathway = await generateRoleSpecificLearningPathway(
       userProfile,
       selectedRole,
       stepsCount
     )
     
+    // Cache the generated pathway for future use
+    learningPathwayCache.set(assessmentId, selectedRole, stepsCount, learningPathway)
+    
     // Return the generated pathway
     return NextResponse.json({
       role: selectedRole,
-      pathway: learningPathway
+      pathway: learningPathway,
+      fromCache: false
     })
   } catch (error) {
     console.error("Error generating learning pathway:", error)
@@ -125,15 +142,33 @@ export async function POST(request: NextRequest) {
     
     // Generate pathways for each role
     const pathwaysByRole: Record<string, LearningPathStep[]> = {}
+    const cacheResults: Record<string, boolean> = {}
     
     for (const role of roles) {
       try {
+        // Check if we have a cached pathway for this role
+        const cachedPathway = learningPathwayCache.get(assessmentId, role, stepsCount)
+        
+        if (cachedPathway) {
+          console.log(`Using cached ${stepsCount}-step learning pathway for ${role}`)
+          pathwaysByRole[role] = cachedPathway
+          cacheResults[role] = true
+          continue
+        }
+        
+        // Generate new pathway if not in cache
+        console.log(`Generating ${stepsCount}-step learning pathway for ${role}`)
         const pathway = await generateRoleSpecificLearningPathway(
           userProfile,
           role,
           stepsCount
         )
+        
+        // Store in cache for future use
+        learningPathwayCache.set(assessmentId, role, stepsCount, pathway)
+        
         pathwaysByRole[role] = pathway
+        cacheResults[role] = false
       } catch (roleError) {
         console.error(`Error generating pathway for role ${role}:`, roleError)
         // Continue with other roles even if one fails
@@ -150,7 +185,8 @@ export async function POST(request: NextRequest) {
     // Return the generated pathways
     return NextResponse.json({
       pathwaysByRole,
-      commonElements
+      commonElements,
+      cacheResults // Include which pathways came from cache
     })
   } catch (error) {
     console.error("Error generating learning pathways:", error)
