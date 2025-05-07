@@ -90,8 +90,8 @@ export async function POST(request: NextRequest) {
       }
 
       // Generate or use provided ID for this assessment
-      const id = assessmentId || generateId() // For local compatibility 
-      const uuid = assessmentId || generateUuid() // Use provided ID or generate new one
+      const uuid = assessmentId || generateUuid(); // Always use UUID for DB
+      const id = uuid; // Use the same UUID for local storage and DB
       console.log("Assessment ID:", id)
       console.log("UUID for Supabase:", uuid)
 
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
             .insert({
               id: uuid,
               email: sanitizedEmail,
-              local_id: id,  // Store local id directly on insert
+              local_id: id,  // Store local id directly on insert (now always UUID)
               original_text: text,
               file_name: file.name,
               file_type: file.type,
