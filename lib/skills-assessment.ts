@@ -44,8 +44,16 @@ export async function assessSkills(cvText: string) {
     }
     
     // Check if the text looks like raw PDF data
-    if (cvText.startsWith('%PDF-') || cvText.includes('endobj') || cvText.includes('stream')) {
-      console.log("Input appears to be raw PDF data rather than extracted text")
+    const isProbablyRawPdf = (
+      cvText.startsWith('%PDF-') ||
+      (
+        cvText.length < 500 && // suspiciously short
+        /[\x00-\x08\x0E-\x1F]/.test(cvText) // contains lots of control chars
+      )
+    );
+
+    if (isProbablyRawPdf) {
+      console.log("Input appears to be raw PDF data rather than extracted text. First 200 chars:", cvText.substring(0, 200));
       return createFallbackAssessment("The input appears to be raw PDF data rather than extracted text. Please ensure proper text extraction before assessment.")
     }
     
