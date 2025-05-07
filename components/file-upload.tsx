@@ -128,6 +128,31 @@ export function FileUpload({ initialEmail = "" }: FileUploadProps) {
       setUploadProgress(100)
       setDebugInfo(`Upload successful! ID: ${data.id}, Text length: ${data.textLength || "unknown"}`)
 
+      // Call the assess API to process the CV before redirecting
+      setDebugInfo("Processing the assessment... Please wait.")
+      
+      try {
+        // Call the assess API to generate the assessment
+        const assessResponse = await fetch(`/api/assess/${data.id}`)
+        
+        if (!assessResponse.ok) {
+          console.warn("Assessment processing returned status:", assessResponse.status)
+          // Continue with redirect even if assessment processing failed
+          // The assessment page will retry fetching the assessment
+        } else {
+          const assessData = await assessResponse.json()
+          if (assessData.success) {
+            setDebugInfo("Assessment generated successfully. Redirecting...")
+          } else {
+            console.warn("Assessment processing failed:", assessData.error)
+            // Continue with redirect anyway
+          }
+        }
+      } catch (assessErr) {
+        console.error("Error calling assessment API:", assessErr)
+        // Continue with redirect even if assessment processing failed
+      }
+
       // Redirect to results page
       setTimeout(() => {
         router.push(`/assessment/${data.id}`)
