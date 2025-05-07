@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 export async function getPdfParser() {
+  console.log("getPdfParser called");
   try {
     // Dynamically import pdf-parse
     const pdfParseModule = await import('pdf-parse');
@@ -42,6 +43,7 @@ export async function getPdfParser() {
 
 // This function can be used instead of directly importing pdf-parse
 export async function parsePdf(buffer: Buffer, options = {}) {
+  console.log("parsePdf called. Buffer length:", buffer.length, "Options:", options);
   const parser = await getPdfParser();
   return parser(buffer, options);
 } 

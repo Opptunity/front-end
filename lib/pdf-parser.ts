@@ -4,11 +4,12 @@ import { parsePdf } from './pdf-parser-fix';
 // Simple PDF text extraction for Node.js environment
 export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
   if (!buffer || buffer.length === 0) {
+    console.error("No PDF data provided. Buffer:", buffer);
     throw new Error("No PDF data provided");
   }
 
   try {
-    console.log("Starting PDF parsing...");
+    console.log("Starting PDF parsing... Buffer type:", typeof buffer, "Buffer length:", buffer.length);
     
     // Use your custom wrapper instead of directly importing pdf-parse
     const data = await parsePdf(buffer, {
@@ -21,7 +22,7 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
       return "Unable to extract text from this PDF. Please try pasting your CV text directly.";
     }
     
-    console.log(`PDF parsing completed. Extracted ${data.text.length} characters`);
+    console.log(`PDF parsing completed. Extracted ${data.text.length} characters. First 200 chars:`, data.text.substring(0, 200));
     return data.text;
   } catch (error) {
     console.error("PDF parsing failed:", error);
@@ -32,7 +33,7 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
       const text = buffer.toString('utf8', 0, Math.min(buffer.length, 10000))
                        .replace(/[^\x20-\x7E\n]/g, ' ')
                        .replace(/\s+/g, ' ');
-      
+      console.log("Fallback extraction result (first 200 chars):", text.substring(0, 200));
       if (text.length > 100) {
         console.log("Simple text extraction succeeded");
         return text;

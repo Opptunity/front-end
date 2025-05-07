@@ -72,14 +72,25 @@ export async function POST(request: NextRequest) {
       try {
         text = await extractTextFromPdf(buffer);
         console.log("Text extracted, length:", text.length);
-        
+        console.log("Extracted text (first 200 chars):", text.substring(0, 200));
         // Check if the extracted text looks like raw PDF data
-        if (text.startsWith('%PDF-') || text.includes('endobj') || text.includes('stream')) {
+        const isProbablyRawPdf = (
+          text.startsWith('%PDF-') ||
+          (
+            text.length < 500 && // suspiciously short
+            /[\\x00-\\x08\\x0E-\\x1F]/.test(text) // contains lots of control chars
+          )
+        );
+
+        if (isProbablyRawPdf) {
           console.error("PDF extraction failed: Output contains raw PDF data");
           text = "PDF parsing failed. The extracted content appears to contain raw PDF data rather than readable text.";
         }
       } catch (pdfError) {
         console.error("PDF extraction failed, using placeholder text:", pdfError);
+        if (pdfError instanceof Error && pdfError.stack) {
+          console.error("PDF extraction error stack:", pdfError.stack);
+        }
         // Provide a placeholder text to continue the flow
         text = "PDF parsing failed. This is placeholder text to allow processing to continue.";
       }
