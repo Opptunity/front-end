@@ -20,7 +20,7 @@ export default function Hero() {
     
     if (existingEmail) {
       // If email exists, go directly to assessment
-      router.push("/assessment")
+      router.push("/assessment?source=visitor")
     } else {
       // Show the email collection dialog instead of the EmailPopup
       setShowEmailDialog(true)

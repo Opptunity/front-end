@@ -1,6 +1,7 @@
 import { generateText } from "ai"
 import { openai } from "@ai-sdk/openai"
 import { xai } from "@ai-sdk/xai"
+import { getApiUrl } from "@/utils/api-client"
 
 // Add a request cache to prevent duplicate API calls
 const assessmentCache = new Map();
@@ -32,7 +33,7 @@ function extractJsonFromText(text: string): string {
   return text
 }
 
-export async function assessSkills(cvText: string) {
+export async function assessSkills(cvText: string, userId?: string) {
   try {
     // Generate a cache key based on the CV text (first 100 chars should be enough to identify)
     const cacheKey = cvText.substring(0, 100);
@@ -141,6 +142,8 @@ export async function assessSkills(cvText: string) {
 
     console.log("Received response from AI")
 
+
+
     // Extract JSON from the response
     const jsonText = extractJsonFromText(text)
 
@@ -158,7 +161,68 @@ export async function assessSkills(cvText: string) {
       // Cache the result
       assessmentCache.set(cacheKey, result);
       
-      return result
+      // Track the backend ID
+      let backendAssessmentId = null;
+      
+      // Save the assessment to the database if we have a userId
+      if (userId) {
+        try {
+          console.log("Saving assessment to database with userId:", userId);
+          
+          const payload = {
+            userId, // Use the userId passed as parameter
+            cvText, // Add CV text to be stored in the database
+            summary: result.summary,
+            technicalSkills: result.technicalSkills,
+            softSkills: result.softSkills,
+            strengths: result.strengths,
+            improvementAreas: result.improvementAreas,
+            recommendations: result.recommendations,
+            industryAnalysis: result.industryAnalysis,
+            careerTrajectory: result.careerTrajectory,
+            skillGapAnalysis: result.skillGapAnalysis
+          };
+          
+          console.log("API Payload:", JSON.stringify(payload, null, 2));
+          
+          // Use the utility function to get the appropriate URL
+          const apiUrl = getApiUrl('/api/assessments/user-assessments');
+          console.log("Using API URL:", apiUrl);
+          
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error("Failed to save assessment:", errorData);
+            if (response.status === 401) {
+              console.error("Authentication error: User not authenticated");
+            }
+          } else {
+            console.log("Assessment saved successfully");
+            // Get the backend-generated ID
+            const responseData = await response.json();
+            if (responseData.assessmentId) {
+              backendAssessmentId = responseData.assessmentId;
+              console.log("Received backend assessment ID:", backendAssessmentId);
+            }
+          }
+        } catch (saveError) {
+          console.error("Error saving assessment to database:", saveError);
+          // Continue with returning the result even if saving fails
+        }
+      }
+      
+      // Return result with backend ID if available
+      return {
+        ...result,
+        backendAssessmentId // Include the backend ID
+      }
     } catch (parseError) {
       console.error("Error parsing JSON:", parseError)
       console.error("JSON text that failed to parse:", jsonText)

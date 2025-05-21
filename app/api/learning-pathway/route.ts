@@ -4,6 +4,7 @@ import { LearningPathStep, PathwayCommonalities, UserProfile } from "@/lib/learn
 import { buildUserProfile } from "@/lib/ai-agent"
 import { assessmentStorage } from "@/lib/storage"
 import { learningPathwayCache } from "@/lib/learning-pathway-cache"
+import { supabase } from "@/lib/supabase"
 
 /**
  * GET endpoint to retrieve a learning pathway for a specific role
@@ -42,17 +43,45 @@ export async function GET(request: NextRequest) {
       })
     }
     
-    // Fetch the assessment
+    // Try to get assessment from memory storage first
     const storedData = assessmentStorage.get(assessmentId)
+    let assessment = storedData?.assessment
     
-    if (!storedData || !storedData.assessment) {
-      return NextResponse.json(
-        { error: "Assessment not found" },
-        { status: 404 }
-      )
+    // If not in memory, try fetching from Supabase
+    if (!assessment) {
+      console.log("Assessment not found in memory cache, trying Supabase")
+      
+      // Try direct query first
+      const { data, error } = await supabase
+        .from('Assessments')
+        .select('assessmentData, cvText')
+        .eq('id', assessmentId)
+        .single()
+      
+      if (error) {
+        console.error("Error fetching from Supabase:", error)
+        
+        // Try as text search fallback
+        const { data: textData, error: textError } = await supabase
+          .from('Assessments')
+          .select('assessmentData, cvText')
+          .filter('id', 'ilike', `%${assessmentId}%`)
+          .limit(1)
+          .single()
+        
+        if (textError) {
+          console.error("Text search also failed:", textError)
+          return NextResponse.json(
+            { error: "Assessment not found" },
+            { status: 404 }
+          )
+        }
+        
+        assessment = textData.assessmentData
+      } else {
+        assessment = data.assessmentData
+      }
     }
-    
-    const assessment = storedData.assessment
     
     // Build user profile from assessment
     const userProfile: UserProfile = {
@@ -116,17 +145,45 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Fetch the assessment
+    // Try to get assessment from memory storage first
     const storedData = assessmentStorage.get(assessmentId)
+    let assessment = storedData?.assessment
     
-    if (!storedData || !storedData.assessment) {
-      return NextResponse.json(
-        { error: "Assessment not found" },
-        { status: 404 }
-      )
+    // If not in memory, try fetching from Supabase
+    if (!assessment) {
+      console.log("Assessment not found in memory cache, trying Supabase for POST request")
+      
+      // Try direct query first
+      const { data, error } = await supabase
+        .from('Assessments')
+        .select('assessmentData, cvText')
+        .eq('id', assessmentId)
+        .single()
+      
+      if (error) {
+        console.error("Error fetching from Supabase:", error)
+        
+        // Try as text search fallback
+        const { data: textData, error: textError } = await supabase
+          .from('Assessments')
+          .select('assessmentData, cvText')
+          .filter('id', 'ilike', `%${assessmentId}%`)
+          .limit(1)
+          .single()
+        
+        if (textError) {
+          console.error("Text search also failed:", textError)
+          return NextResponse.json(
+            { error: "Assessment not found" },
+            { status: 404 }
+          )
+        }
+        
+        assessment = textData.assessmentData
+      } else {
+        assessment = data.assessmentData
+      }
     }
-    
-    const assessment = storedData.assessment
     
     // Build user profile from assessment
     const userProfile: UserProfile = {

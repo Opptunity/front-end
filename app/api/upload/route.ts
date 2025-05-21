@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
               original_text: text,
               file_name: file.name,
               file_type: file.type,
-              updated_at: new Date().toISOString()
+              updatedAt: new Date().toISOString()
             })
             .eq('id', uuid)
           
@@ -160,8 +160,8 @@ export async function POST(request: NextRequest) {
               file_type: file.type,
               parsed_data: null,
               assessment_results: null,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
             })
             .select()
           
@@ -202,6 +202,7 @@ export async function POST(request: NextRequest) {
         supabase_id: uuid,
         success: true,
         message: "File uploaded successfully",
+        text: text,
         textLength: text.length,
         textQuality: text.includes("We encountered an issue") ? "low" : "good"
       })

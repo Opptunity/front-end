@@ -80,13 +80,25 @@ export default function Header() {
               transition={{ duration: 0.3, delay: 0.4 }}
               className="flex space-x-4"
             >
-              {/* Login button hidden for now
-              <Link href="/login">
+             {/* <Link href="/login">
                 <AnimatedButton className="bg-white text-blue-600 border border-blue-600 hover:bg-blue-50">
                   {t("login") || "Log In"}
                 </AnimatedButton>
-              </Link>
+              </Link> 
               */}
+              
+              <Link href="/auth/sso">
+                <AnimatedButton className="bg-white text-gray-700 border border-gray-300 hover:bg-gray-50">
+                  {t("login") || "Log In"}
+                </AnimatedButton>
+              </Link>
+              
+              <Link href="/auth/signup">
+                <AnimatedButton className="bg-blue-600 text-white hover:bg-blue-700">
+                  {t("signup") || "Sign Up"}
+                </AnimatedButton>
+              </Link>
+              
               {/* SA button hidden for now
               <button onClick={handleShowEmailPopup}>
                 <AnimatedButton className="bg-green-600 text-white hover:bg-green-700">
@@ -150,13 +162,24 @@ export default function Header() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: 0.3 }}
               >
-                {/* Login button hidden for now
                 <Link href="/login" onClick={closeAllMenus}>
                   <AnimatedButton className="w-full bg-white text-blue-600 border border-blue-600 hover:bg-blue-50">
                     {t("login") || "Log In"}
                   </AnimatedButton>
                 </Link>
-                */}
+                
+                <Link href="/auth/sso" onClick={closeAllMenus}>
+                  <AnimatedButton className="w-full bg-white text-gray-700 border border-gray-300 hover:bg-gray-50">
+                    {t("signInWithSSO") || "Sign in with SSO"}
+                  </AnimatedButton>
+                </Link>
+                
+                <Link href="/auth/signup" onClick={closeAllMenus}>
+                  <AnimatedButton className="w-full bg-blue-600 text-white hover:bg-blue-700">
+                    {t("signup") || "Sign Up"}
+                  </AnimatedButton>
+                </Link>
+                
                 {/* SA button hidden for now
                 <button onClick={handleShowEmailPopup}>
                   <AnimatedButton className="w-full bg-green-600 text-white hover:bg-green-700">

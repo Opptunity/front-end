@@ -4,7 +4,7 @@ import { AssessmentResults } from "@/components/assessment-results"
 import { PersonalizedTest } from "@/components/personalized-test"
 import { CourseLibrary } from "@/components/course-library"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FileText, Brain, BookOpen } from "lucide-react"
+import { FileText, Brain, BookOpen, AlertCircle, ArrowLeft } from "lucide-react"
 import { AnimatedContainer } from "@/components/animated-container"
 import { motion } from "framer-motion"
 import { useState, useEffect, Suspense } from "react"
@@ -18,6 +18,8 @@ import type { Industry } from "@/lib/industry-detection"
 import { generateCourseRecommendations, generateFallbackCourseRecommendations } from "@/lib/course-recommendations"
 import { buildUserProfile } from "@/lib/ai-agent"
 import type { RecommendedCourse } from "@/lib/types"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import Link from "next/link"
 
 // Loading state component
 function LoadingAssessment() {
@@ -35,7 +37,39 @@ function LoadingAssessment() {
   )
 }
 
+// Add this helper function
+function safeJsonParse(jsonStr: any, defaultValue = []) {
+  try {
+    return typeof jsonStr === 'string' ? JSON.parse(jsonStr) : defaultValue;
+  } catch (e) {
+    console.error("Error parsing JSON:", e);
+    return defaultValue;
+  }
+}
+
 // Client component that uses useSearchParams
+async function fetchAssessment(id: string) {
+  try {
+    // Directly fetch from the local API that we know exists
+    console.log("Fetching assessment data from /api/assess endpoint");
+    const response = await fetch(`/api/assess/${id}`);
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log("Assessment data received:", data);
+      
+      // Return the response directly since our /api/assess endpoint now returns the correct format
+      return data;
+    }
+    
+    console.error("Failed to fetch assessment, status:", response.status);
+    return null;
+  } catch (error) {
+    console.error("Error fetching assessment:", error);
+    return null;
+  }
+}
+
 function AssessmentPageContent({ params }: { params: { id: string } }) {
   const [assessment, setAssessment] = useState<AssessmentData | null>(null)
   const [selectedRole, setSelectedRole] = useState<string | null>(null)
@@ -89,25 +123,23 @@ function AssessmentPageContent({ params }: { params: { id: string } }) {
 
   // Fetch assessment data to pass to CourseLibrary
   useEffect(() => {
-    const fetchAssessment = async () => {
+    const fetchAssessmentData = async () => {
       try {
-        const response = await fetch(`/api/assess/${params.id}`)
+        const data = await fetchAssessment(params.id)
+        console.log("Assessment data fetched:", data);
 
-        if (!response.ok) {
-          return
-        }
-
-        const data = await response.json()
-
-        if (data.success && data.assessment) {
+        if (data && data.success && data.assessment) {
+          console.log("Valid assessment data found, setting state");
           setAssessment(data.assessment)
+        } else {
+          console.error("Invalid assessment data format:", data);
         }
       } catch (err) {
         console.error("Error fetching assessment:", err)
       }
     }
 
-    fetchAssessment()
+    fetchAssessmentData()
   }, [params.id])
   
   // Save email to Supabase if provided in URL or localStorage
@@ -204,6 +236,21 @@ function AssessmentPageContent({ params }: { params: { id: string } }) {
     <div className="container mx-auto py-10">
       <div className="max-w-4xl mx-auto">
         <AnimatedContainer>
+          <motion.div
+            className="mb-6"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Link 
+              href="/dashboard" 
+              className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800 mb-4 transition-colors duration-150 group"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" />
+              Back to Dashboard
+            </Link>
+          </motion.div>
+          
           <motion.h1
             className="text-3xl font-bold mb-2"
             initial={{ opacity: 0, y: -20 }}
@@ -263,6 +310,31 @@ function AssessmentPageContent({ params }: { params: { id: string } }) {
                 id={params.id} 
                 onRoleSelect={(role) => setSelectedRole(role)}
               />
+
+              {/* Debug Panel */}
+              <Card className="mt-6 border-dashed border-red-300">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <AlertCircle className="mr-2 h-5 w-5 text-red-500" />
+                    Debug Info
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-xs overflow-auto max-h-96">
+                  <div>
+                    <h3 className="font-bold mb-1">Raw Skill Gaps:</h3>
+                    <pre className="bg-gray-100 p-2 rounded overflow-auto">
+                      {JSON.stringify(assessment?.skillGapAnalysis.criticalGaps, null, 2)}
+                    </pre>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-bold mb-1">All Assessment Data:</h3>
+                    <pre className="bg-gray-100 p-2 rounded overflow-auto">
+                      {JSON.stringify(assessment, null, 2)}
+                    </pre>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
             <TabsContent value="test" className="mt-4">
               <div className="space-y-6">

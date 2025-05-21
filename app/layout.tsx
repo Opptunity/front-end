@@ -5,6 +5,8 @@ import { Inter } from "next/font/google"
 import { LanguageProvider } from "@/contexts/language-context"
 import { EmailCollectionProvider } from "@/contexts/email-collection-context"
 import AssessmentRouteHandler from "@/components/assessment-route-handler"
+import { AuthKitProvider } from '@workos-inc/authkit-nextjs/components'
+import { BackendAuthProvider } from '@/contexts/backend-auth-context'
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -23,12 +25,16 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <body className={inter.className}>
-        <LanguageProvider>
-          <EmailCollectionProvider>
-            <AssessmentRouteHandler />
-            <div id="page-transitions">{children}</div>
-          </EmailCollectionProvider>
-        </LanguageProvider>
+        <AuthKitProvider>
+          <BackendAuthProvider>
+            <LanguageProvider>
+              <EmailCollectionProvider>
+                <AssessmentRouteHandler />
+                <div id="page-transitions">{children}</div>
+              </EmailCollectionProvider>
+            </LanguageProvider>
+          </BackendAuthProvider>
+        </AuthKitProvider>
       </body>
     </html>
   )

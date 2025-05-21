@@ -2,50 +2,42 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useAuth } from '@workos-inc/authkit-nextjs/components'
+import { useBackendAuth } from '@/contexts/backend-auth-context'
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter()
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
+  const auth = useAuth()
+  const { isBackendAuthenticated, isLoading: isBackendLoading } = useBackendAuth()
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false)
 
   useEffect(() => {
-    // Check if user is authenticated
-    const authToken = localStorage.getItem('authToken')
-    
-    if (!authToken) {
-      // Redirect to login if not authenticated
-      router.push("/login")
+    // Only perform the auth check once when the component mounts
+    // or when auth state actually changes, not on route navigation
+    if (hasCheckedAuth) {
       return
     }
-    
-    // Verify token validity with backend
-    const verifyToken = async () => {
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_AUTH_API_URL}/api/users/profile`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json',
-          },
-        })
-        
-        if (!response.ok) {
-          throw new Error("Invalid authentication")
-        }
-        
-        setIsAuthenticated(true)
-        setLoading(false)
-      } catch (error) {
-        console.error("Authentication error:", error)
-        localStorage.removeItem('authToken')
+
+    // Only proceed when both auth states are settled
+    if (!auth.loading && !isBackendLoading) {
+      if (!auth.user) {
+        // Not authenticated with WorkOS, redirect to login
         router.push("/login")
+      } else if (!isBackendAuthenticated) {
+        // Authenticated with WorkOS but not with backend
+        // This should be rare due to our caching improvements
+        console.log("Authenticated with WorkOS but not with backend yet")
       }
+      
+      // Mark that we've checked auth status
+      setHasCheckedAuth(true)
+      setLoading(false)
     }
-    
-    verifyToken()
-  }, [router])
+  }, [auth.user, auth.loading, isBackendAuthenticated, isBackendLoading, hasCheckedAuth, router])
   
-  if (loading) {
+  // Simple loading state for the initial auth check
+  if (loading && !hasCheckedAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
@@ -53,5 +45,5 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     )
   }
   
-  return isAuthenticated ? <>{children}</> : null
+  return <>{children}</>
 } 
