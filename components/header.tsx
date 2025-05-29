@@ -93,11 +93,11 @@ export default function Header() {
                 </AnimatedButton>
               </Link>
               
-              <Link href="/auth/signup">
+              {/* <Link href="/auth/signup">
                 <AnimatedButton className="bg-blue-600 text-white hover:bg-blue-700">
                   {t("signup") || "Sign Up"}
                 </AnimatedButton>
-              </Link>
+              </Link> */}
               
               {/* SA button hidden for now
               <button onClick={handleShowEmailPopup}>
@@ -174,11 +174,11 @@ export default function Header() {
                   </AnimatedButton>
                 </Link>
                 
-                <Link href="/auth/signup" onClick={closeAllMenus}>
+                {/* <Link href="/auth/signup" onClick={closeAllMenus}>
                   <AnimatedButton className="w-full bg-blue-600 text-white hover:bg-blue-700">
                     {t("signup") || "Sign Up"}
                   </AnimatedButton>
-                </Link>
+                </Link> */}
                 
                 {/* SA button hidden for now
                 <button onClick={handleShowEmailPopup}>
