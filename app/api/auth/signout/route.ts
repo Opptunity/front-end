@@ -1,74 +1,90 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { WorkOS } from '@workos-inc/node';
-import { getWorkOS } from '@workos-inc/authkit-nextjs';
+import { getWorkOS, withAuth } from '@workos-inc/authkit-nextjs';
+import { cookies } from 'next/headers';
 
-// Initialize WorkOS client with error handling for missing API key
-const workosApiKey = process.env.WORKOS_API_KEY;
-if (!workosApiKey) {
-  console.error('WORKOS_API_KEY environment variable is not set. Session revocation will not work.');
+// Get the WorkOS logout URL to properly invalidate the session
+async function getWorkOSLogoutUrl(returnTo?: string) {
+  let sessionId: string | undefined;
+
+  try {
+    // Get the current auth session which contains the sessionId
+    const { sessionId: sid } = await withAuth();
+    sessionId = sid;
+    console.log('Found session ID for logout:', sessionId);
+  } catch (error) {
+    console.error('Error getting session ID:', error);
+  }
+
+  // If we have a sessionId, get the official WorkOS logout URL
+  if (sessionId) {
+    const workos = getWorkOS();
+    const logoutUrl = workos.userManagement.getLogoutUrl({ 
+      sessionId, 
+      returnTo: returnTo || `${process.env.FRONTEND_URL || ''}/auth/sso?fresh=true&logout=complete` 
+    });
+    console.log('Generated WorkOS logout URL:', logoutUrl);
+    return logoutUrl;
+  }
+
+  // Fallback to our custom logout URL if no session ID is available
+  return `${process.env.FRONTEND_URL || ''}/auth/sso?fresh=true&logout=complete`;
 }
-const workos = new WorkOS(workosApiKey || '');
 
-// This endpoint is dedicated to WorkOS sign-out using the direct WorkOS logout URL
+// Clear all auth cookies
+function clearAllAuthCookies(response: NextResponse) {
+  // List of all cookies that might be set by auth processes
+  const cookiesToClear = [
+    'authkit',
+    'backendAuthToken', 
+    'userEmail',
+    '_workos_session',
+    'workos_token',
+    'workos.session',
+    'workos.user',
+    'workos.auth',
+    'wos-session'  // Add the official WorkOS cookie name
+  ];
+  
+  // Clear all cookies
+  cookiesToClear.forEach(cookieName => {
+    response.cookies.set({
+      name: cookieName,
+      value: '',
+      expires: new Date(0),
+      path: '/'
+    });
+  });
+  
+  // Set cache control to prevent caching
+  response.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
+  response.headers.set('Pragma', 'no-cache');
+  response.headers.set('Expires', '0');
+  
+  return response;
+}
+
+// This endpoint is dedicated to WorkOS sign-out with proper session invalidation
 export async function GET(request: NextRequest) {
   try {
-    console.log('WorkOS direct signout starting...');
+    console.log('WorkOS signout starting...');
     
-    // The authkit cookie has the session information encrypted
-    // We'll focus on clearing cookies instead of trying to revoke the session
-    console.log('Clearing cookies without attempting session revocation');
+    // Get the official WorkOS logout URL
+    const logoutUrl = await getWorkOSLogoutUrl();
     
-    // Clear all cookies first
-    const response = NextResponse.json({ 
-      success: true, 
-      message: 'Redirecting to WorkOS logout' 
-    });
+    // Create a response that redirects to the WorkOS logout URL
+    const response = NextResponse.redirect(logoutUrl);
     
-    // Clear all authentication cookies
-    response.cookies.set({
-      name: 'authkit',
-      value: '',
-      expires: new Date(0),
-      path: '/'
-    });
-    
-    response.cookies.set({
-      name: 'backendAuthToken',
-      value: '',
-      expires: new Date(0),
-      path: '/'
-    });
-    
-    response.cookies.set({
-      name: 'userEmail',
-      value: '',
-      expires: new Date(0),
-      path: '/'
-    });
-    
-    // Also clear WorkOS specific cookies
-    response.cookies.set({
-      name: '_workos_session',
-      value: '',
-      expires: new Date(0),
-      path: '/' 
-    });
-    
-    response.cookies.set({
-      name: 'workos_token',
-      value: '',
-      expires: new Date(0),
-      path: '/'
-    });
-    
-    // Return JSON with instructions for the client
-    return response;
+    // Clear all auth cookies
+    return clearAllAuthCookies(response);
   } catch (error) {
     console.error('Error during WorkOS sign out:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to sign out'
-    }, { status: 500 });
+    
+    // Even if there's an error, attempt to redirect to the logout page
+    const fallbackUrl = `${request.nextUrl.origin}/auth/sso?fresh=true&logout=complete`;
+    const response = NextResponse.redirect(fallbackUrl);
+    
+    // Still try to clear cookies
+    return clearAllAuthCookies(response);
   }
 }
 
@@ -77,76 +93,34 @@ export async function POST(request: NextRequest) {
   try {
     console.log('WorkOS signout POST handler starting...');
     
-    // Get cookie from request body if present
-    const body = await request.json().catch(() => ({}));
-    const { authkitCookie } = body || {};
+    // Get the official WorkOS logout URL
+    const baseUrl = request.nextUrl.origin;
+    const returnTo = `${baseUrl}/auth/sso?fresh=true&logout=complete`;
+    const logoutUrl = await getWorkOSLogoutUrl(returnTo);
     
-    if (authkitCookie) {
-      console.log('Received authkit cookie from client');
-      // The proper way to sign out is by using the WorkOS logout URL
-      // Session revocation is best done through the AuthKit itself
-    }
-    
-    // Create a success response
+    // Create a response with the redirect URL
     const response = NextResponse.json({ 
       success: true,
-      message: 'Successfully signed out from backend',
-      redirectTo: '/auth/sso' // Tell client where to redirect
+      message: 'Successfully signed out',
+      redirectUrl: logoutUrl
     });
     
-    // Clear auth cookies by setting expired values
-    console.log('Setting authkit cookie to expired');
-    response.cookies.set({
-      name: 'authkit',
-      value: '',
-      expires: new Date(0),
-      path: '/'
-    });
-    
-    console.log('Setting backendAuthToken cookie to expired');
-        response.cookies.set({
-      name: 'backendAuthToken',
-          value: '',
-      expires: new Date(0),
-      path: '/'
-        });
-    
-    // Also try to clear other potential auth cookies
-    console.log('Setting userEmail cookie to expired');
-    response.cookies.set({
-      name: 'userEmail',
-      value: '',
-      expires: new Date(0),
-      path: '/'
-    });
-    
-    // Also clear WorkOS specific cookies
-    response.cookies.set({
-      name: '_workos_session',
-      value: '',
-      expires: new Date(0),
-      path: '/' 
-    });
-    
-    response.cookies.set({
-      name: 'workos_token',
-      value: '',
-      expires: new Date(0),
-      path: '/'
-    });
-    
-    // Set cache control headers to prevent caching
-    response.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
-    
-    console.log('WorkOS signout POST response prepared with cleared cookies');
-    
-    return response;
+    // Clear all auth cookies
+    return clearAllAuthCookies(response);
   } catch (error) {
     console.error('Error during POST sign out:', error);
-    return NextResponse.json({ 
+    
+    // If there's an error, still try to build a fallback logout URL
+    const baseUrl = request.nextUrl.origin;
+    const fallbackLogoutUrl = `${baseUrl}/auth/sso?fresh=true&logout=complete`;
+    
+    const response = NextResponse.json({ 
       success: false, 
       error: 'Failed to sign out',
-      redirectTo: '/auth/sso' // Still tell client where to redirect even on error
+      redirectUrl: fallbackLogoutUrl 
     }, { status: 500 });
+    
+    // Still try to clear cookies
+    return clearAllAuthCookies(response);
   }
 } 

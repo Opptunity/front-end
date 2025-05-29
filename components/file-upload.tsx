@@ -180,8 +180,12 @@ export function FileUpload({ initialEmail = "" }: FileUploadProps) {
       setUploadProgress(100)
       setDebugInfo(`Assessment created successfully! ID: ${assessmentData.id}`)
 
+      // Get source parameter to preserve it in navigation
+      const source = searchParams.get('source')
+      const targetUrl = source ? `/assessment/${assessmentData.id}?source=${source}` : `/assessment/${assessmentData.id}`
+
       // Redirect to the assessment results page
-      router.push(`/assessment/${assessmentData.id}`)
+      router.push(targetUrl)
     } catch (err) {
       clearInterval(progressInterval)
       console.error("Process error:", err)

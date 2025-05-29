@@ -4,6 +4,7 @@ import { buildUserProfile } from "@/lib/ai-agent"
 import type { Industry } from "@/lib/industry-detection"
 import { assessmentStorage } from "@/lib/storage"
 import { courseRecommendationsCache } from "@/lib/course-recommendations-cache"
+import { supabase } from "@/lib/supabase"
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,15 +27,50 @@ export async function GET(request: NextRequest) {
     }
     
     // No cache hit, proceed with generating recommendations
-    // Instead of using fetch, directly access the assessment data from storage
+    // First try to get assessment data from memory storage
     const storedData = assessmentStorage.get(id)
+    let assessment = storedData?.assessment
     
+    // If not found in memory, try fetching from Supabase
     if (!storedData || !storedData.assessment) {
+      console.log("Assessment not found in memory cache, trying Supabase for ID:", id)
+      
+      // Try direct query first
+      const { data, error } = await supabase
+        .from('Assessments')
+        .select('assessmentData, cvText')
+        .eq('id', id)
+        .single()
+      
+      if (error) {
+        console.error("Error fetching from Supabase:", error)
+        
+        // Try as text search fallback
+        const { data: textData, error: textError } = await supabase
+          .from('Assessments')
+          .select('assessmentData, cvText')
+          .filter('id', 'ilike', `%${id}%`)
+          .limit(1)
+          .single()
+        
+        if (textError) {
+          console.error("Text search also failed:", textError)
+          console.log("Assessment not found or incomplete for ID:", id)
+          return NextResponse.json({ error: "Assessment not found or incomplete" }, { status: 404 })
+        }
+        
+        console.log("Found assessment using text search")
+        assessment = textData.assessmentData
+      } else {
+        console.log("Found assessment using direct query")
+        assessment = data.assessmentData
+      }
+    }
+    
+    if (!assessment) {
       console.log("Assessment not found or incomplete for ID:", id)
       return NextResponse.json({ error: "Assessment not found or incomplete" }, { status: 404 })
     }
-    
-    const assessment = storedData.assessment
     
     try {
       // Validate industry from assessment

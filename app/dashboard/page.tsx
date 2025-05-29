@@ -75,44 +75,46 @@ export default function DashboardPage() {
     try {
       console.log('Starting logout process...');
       
-      // Clear all auth-related storage first (best practice)
-      localStorage.removeItem('BACKEND_AUTH_STORAGE_KEY');
-      localStorage.removeItem('backendAuthData');
-      localStorage.setItem('forceFullAuth', 'true');
+      // Set a flag to indicate we're actively logging out
+      // This helps other components avoid accessing auth during transitions
+      window.sessionStorage.setItem('auth_transitioning', 'true');
+      
+      // First, check for any stored credentials in local storage or session storage
       localStorage.clear();
+      // Don't clear sessionStorage completely as we just set our flag
+      // Just remove specific auth items if needed
+      sessionStorage.removeItem('authkit_state');
+      sessionStorage.removeItem('backendAuthToken');
       
-      // Clear ALL cookies on client side - be aggressive
-      document.cookie.split(";").forEach((cookie) => {
-        const parts = cookie.split("=");
-        const name = parts[0].trim();
-        document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-      });
-      
-      // Also explicitly clear the known auth cookies
-      document.cookie = "authkit=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"; 
-      document.cookie = "backendAuthToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-      document.cookie = "userEmail=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-      document.cookie = "_workos_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-      document.cookie = "workos_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-      
-      console.log('Local storage and cookies cleared');
-      
-      // Call our local API to clear cookies server-side
-      await fetch('/api/auth/signout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
+      // Clear browser cache for the current page to prevent any cached auth tokens
+      if ('caches' in window) {
+        try {
+          const cacheNames = await window.caches.keys();
+          await Promise.all(
+            cacheNames.map(cacheName => window.caches.delete(cacheName))
+          );
+          console.log('Browser caches cleared');
+        } catch (cacheError) {
+          console.warn('Error clearing caches:', cacheError);
         }
-      });
+      }
       
-      // For WorkOS logout, redirect to the SSO page with fresh=true parameter
-      const baseUrl = window.location.origin;
-      window.location.href = `${baseUrl}/auth/sso?fresh=true&logout=complete`;
+      // Call our improved API route to handle server-side logout
+      // Using GET instead of POST to allow proper redirect handling by the browser
+      console.log('Redirecting to proper WorkOS logout endpoint');
+      
+      // Direct browser navigation to the signout endpoint
+      // This will properly redirect to WorkOS for session invalidation
+      window.location.href = `/api/auth/signout?cb=${Date.now()}`;
+      
+      // The function ends here as we're redirecting the browser
+      return;
     } catch (error) {
       console.error("Logout error:", error);
-      // If anything fails, try going to SSO directly
-      const baseUrl = window.location.origin;
-      window.location.href = `${baseUrl}/auth/sso?fresh=true&logout=complete`;
+      
+      // If anything fails, try going to signout directly as fallback
+      window.sessionStorage.setItem('auth_transitioning', 'true');
+      window.location.href = `/api/auth/signout?cb=${Date.now()}`;
     }
   }
   
@@ -144,12 +146,12 @@ export default function DashboardPage() {
               >
                 {t("profile") || "Profile"}
               </Link> */}
-            {/*  <button
+            <button
                 onClick={handleLogout}
                 className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors duration-150"
               >
                 {t("logout") || "Logout"}
-              </button> */}
+              </button> 
             </div>
           </div>
         </header>

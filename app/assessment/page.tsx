@@ -36,6 +36,16 @@ function AssessmentContent() {
   // Get source from URL param or determine from auth status
   const source = searchParams.get('source') || (auth.user ? 'dashboard' : 'visitor')
   
+  // Store source in session storage for tracking navigation
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('assessmentSource', source)
+    }
+  }, [source])
+  
+  // Determine if back button should be shown
+  const shouldShowBackButton = source === 'dashboard' && auth.user
+  
   const goToDashboard = () => {
     router.push('/dashboard')
   }
@@ -45,8 +55,8 @@ function AssessmentContent() {
       {/* Show logo navbar for visitors */}
       {source === 'visitor' && <OpptunityLogo />}
       
-      {/* Show back button for logged in users */}
-      {source === 'dashboard' && (
+      {/* Show back button for logged in users from dashboard */}
+      {shouldShowBackButton && (
         <div className="mb-4">
           <Button 
             variant="ghost" 

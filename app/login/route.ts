@@ -1,16 +1,17 @@
 import { getSignInUrl } from '@workos-inc/authkit-nextjs';
-import { NextRequest, NextResponse } from 'next/server';
+import { redirect } from 'next/navigation';
 
-export const GET = async (request: NextRequest) => {
+export const GET = async () => {
   try {
-    // Get the WorkOS AuthKit sign-in URL
+    // Get the authentication URL from WorkOS AuthKit
     const signInUrl = await getSignInUrl();
     
-    // Use NextResponse.redirect() instead of redirect() from next/navigation
-    return NextResponse.redirect(signInUrl);
+    // Redirect to the WorkOS hosted authentication page
+    return redirect(signInUrl);
   } catch (error) {
-    console.error('Login error:', error);
-    // If there's an error, redirect to the homepage
-    return NextResponse.redirect(new URL('/', process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'));
+    console.error('Error generating sign-in URL:', error);
+    
+    // Fallback to default SSO page on error
+    return redirect('/auth/sso');
   }
 }; 

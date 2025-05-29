@@ -21,7 +21,8 @@ function safeJsonParse(jsonStr: string | null | undefined, defaultValue: any = [
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const id = params.id.trim()
+    const resolvedParams = await params;
+    const id = resolvedParams.id.trim()
     console.log("Assessment requested for ID:", id)
 
     // Log the exact query we're about to run
@@ -126,7 +127,8 @@ async function processAssessment(id: string, storedData: any, request: NextReque
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const id = params.id.trim();
+    const resolvedParams = await params;
+    const id = resolvedParams.id.trim();
     const body = await request.json();
     const userId = body.userId;
     

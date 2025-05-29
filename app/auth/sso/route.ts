@@ -1,4 +1,4 @@
-import { getSignInUrl } from '@workos-inc/authkit-nextjs';
+import { getWorkOS } from '@workos-inc/authkit-nextjs';
 import { NextResponse, NextRequest } from 'next/server';
 
 // Using NextResponse.redirect() instead of next/navigation's redirect to avoid client-side redirect errors
@@ -13,55 +13,55 @@ export const GET = async (request: NextRequest) => {
       console.log('User has completed logout process, forcing fresh login session');
     }
     
-    // Get the WorkOS AuthKit sign-in URL
-    let signInUrl = await getSignInUrl();
+    // Get direct access to WorkOS SDK to use additional parameters
+    const workos = getWorkOS();
     
-    // Force a fresh login by appending prompt=login when either:
-    // 1. The fresh=true parameter is present, or
-    // 2. The logout=complete parameter is present (came from logout flow)
+    // Build authorization options
+    const options: any = {
+      provider: 'authkit',
+      redirectUri: process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI || 'http://localhost:3000/auth/callback',
+      clientId: process.env.WORKOS_CLIENT_ID,
+    };
+    
+    // Add parameters to force fresh login when needed
     if (forceFresh || completedLogout) {
-      console.log('Forcing a fresh login session with prompt=login');
-      signInUrl = signInUrl + (signInUrl.includes('?') ? '&' : '?') + 'prompt=login';
+      options.state = JSON.stringify({ requireNewLogin: true });
+      options.prompt = 'login'; // Force showing login screen
+      options.max_age = '0';    // Force re-authentication
+      console.log('Forcing a completely fresh login session with prompt=login and max_age=0');
     }
+    
+    // Get the authorization URL with our custom options
+    const signInUrl = await workos.userManagement.getAuthorizationUrl(options);
     
     // Clear any auth cookies just to be sure - especially important after logout
     const response = NextResponse.redirect(signInUrl);
     if (forceFresh || completedLogout) {
-      response.cookies.set({
-        name: 'authkit',
-        value: '',
-        expires: new Date(0),
-        path: '/'
+      // Clear all possible auth cookies
+      const cookiesToClear = [
+        'authkit',
+        'backendAuthToken',
+        'userEmail',
+        '_workos_session',
+        'workos_token',
+        'workos.session',
+        'workos.user',
+        'workos.auth'
+      ];
+      
+      cookiesToClear.forEach(cookieName => {
+        response.cookies.set({
+          name: cookieName,
+          value: '',
+          expires: new Date(0),
+          path: '/'
+        });
       });
       
-      response.cookies.set({
-        name: 'backendAuthToken',
-        value: '',
-        expires: new Date(0),
-        path: '/'
-      });
-      
-      response.cookies.set({
-        name: 'userEmail',
-        value: '',
-        expires: new Date(0),
-        path: '/'
-      });
-      
-      // Also clear any WorkOS specific cookies that might be present
-      response.cookies.set({
-        name: '_workos_session',
-        value: '',
-        expires: new Date(0),
-        path: '/' 
-      });
-      
-      response.cookies.set({
-        name: 'workos_token',
-        value: '',
-        expires: new Date(0),
-        path: '/'
-      });
+      // Set cache control to prevent caching
+      response.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
+      response.headers.set('Pragma', 'no-cache');
+      response.headers.set('Expires', '0');
     }
     
     return response;
