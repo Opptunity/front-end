@@ -14,6 +14,7 @@ const publicPaths = [
   '/auth/verify',
   '/api/auth/signout',
   '/api/auth/check-session',
+  '/assessment',
 ];
 
 // Define paths that should skip session validation entirely (fresh login)

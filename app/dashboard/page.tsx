@@ -201,7 +201,7 @@ export default function DashboardPage() {
             {/* Agents section */}
             <div>
               <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-                <span className="mr-2">🤖</span> {t("yourAgents") || "Your Agents"}
+                <span className="mr-2">🤖</span> {t("your Agents") || "Your Agents"}
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

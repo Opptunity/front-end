@@ -101,8 +101,9 @@ export default function EmailCollectionDialog() {
       // If on the base assessment page, stay there
       setShowEmailDialog(false)
     } else {
-      // Otherwise go to the assessment page
-      router.push(`/assessment/${assessmentId}`)
+      // For visitors from homepage, navigate to assessment with source parameter
+      const source = searchParams?.get('source') || 'visitor'
+      router.push(`/assessment?source=${source}`)
     }
   }
 
