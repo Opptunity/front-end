@@ -1,84 +1,73 @@
 import { handleAuth } from '@workos-inc/authkit-nextjs';
 import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
 
 // Handle authentication callback from WorkOS with custom handling
-export const GET = handleAuth({
-  returnPathname: '/dashboard',
-  onSuccess: async (data) => {
-    try {
-      const user = data.user;
-      // Log successful authentication with WorkOS
-      console.log('WorkOS authentication successful:', user.email);
-      
-      try {
-        // Try to login the user with our backend API - using a new approach with direct access
-        // Since we're in a server component, we'll use Node.js's global fetch which we can control better
+export const GET = async (request: NextRequest) => {
+  console.log('Auth callback: Processing authentication');
+  
+  try {
+    return await handleAuth({
+      returnPathname: '/dashboard',
+      onSuccess: async (data) => {
+        console.log('Auth callback: SUCCESS - Creating new session for:', data.user.email);
         
-        console.log('Attempting to login user at: /api/users/login');
-        
-        // Implement direct database call instead of API call
-        const { createClient } = await import('@supabase/supabase-js');
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-        
-        if (!supabaseUrl || !supabaseAnonKey) {
-          throw new Error('Missing Supabase environment variables');
-        }
-        
-        const supabase = createClient(supabaseUrl, supabaseAnonKey);
-        
-        // Try to find the user in the database
-        const { data: existingUser, error: findError } = await supabase
-          .from('Users')
-          .select('*')
-          .eq('email', user.email)
-          .single();
-        
-        if (findError && findError.code !== 'PGRST116') {
-          // Error other than "not found"
-          console.error('Error finding user:', findError);
-          return;
-        }
-        
-        // If user exists, we're done
-        if (existingUser) {
-          console.log('User found in database:', existingUser);
-          return;
-        }
-        
-        // If user doesn't exist, register them
-        console.log('User not found, registering:', user.email);
-        
-        const { data: newUser, error: insertError } = await supabase
-          .from('Users')
-          .insert([
-            { 
-          email: user.email,
-              username: user.firstName ? 
-                (user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName) : 
-                user.email.split('@')[0],
-              role: 'jobSeeker',
-              jobTitle: ''
+        // User authentication successful - new session created
+        try {
+          // Your existing user sync logic...
+          const { createClient } = await import('@supabase/supabase-js');
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+          const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+          
+          if (supabaseUrl && supabaseAnonKey) {
+            const supabase = createClient(supabaseUrl, supabaseAnonKey);
+            
+            const { data: existingUser, error: findError } = await supabase
+              .from('Users')
+              .select('*')
+              .eq('email', data.user.email)
+              .single();
+            
+            if (findError && findError.code !== 'PGRST116') {
+              console.error('Error finding user:', findError);
+            } else if (!existingUser) {
+              console.log('Creating new user in database');
+              await supabase
+                .from('Users')
+                .insert([{
+                  email: data.user.email,
+                  username: data.user.firstName ? 
+                    (data.user.lastName ? `${data.user.firstName} ${data.user.lastName}` : data.user.firstName) : 
+                    data.user.email.split('@')[0],
+                  role: 'jobSeeker',
+                  jobTitle: ''
+                }]);
             }
-          ])
-          .select()
-          .single();
-      
-        if (insertError) {
-          console.error('Error registering user:', insertError);
-          return;
+          }
+        } catch (syncError) {
+          console.error('User sync error (non-critical):', syncError);
         }
         
-        console.log('User registered successfully:', newUser);
+        console.log('Auth callback: Session created successfully');
+        return;
+      },
+      onError: async (error) => {
+        console.error('Auth callback: ERROR occurred:', error);
         
-      } catch (apiError) {
-        console.error('Error with API calls:', apiError);
+        // Redirect to login with error message
+        const loginUrl = new URL('/login', request.url);
+        loginUrl.searchParams.set('error', 'authentication_failed');
+        
+        return NextResponse.redirect(loginUrl);
       }
-      
-      return;
-    } catch (error) {
-      console.error('Error during authentication:', error);
-      return;
-    }
+    })(request);
+  } catch (error) {
+    console.error('Auth callback: Outer error:', error);
+    
+    // Fallback redirect to login
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('error', 'callback_failed');
+    
+    return NextResponse.redirect(loginUrl);
   }
-}); 
+}; 

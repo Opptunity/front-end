@@ -6,15 +6,22 @@ import { authkit } from '@workos-inc/authkit-nextjs';
 const publicPaths = [
   '/',
   '/login',
-  '/login/', // Include trailing slash variant
-  '/login/success', // Include potential success path 
+  '/login/', 
+  '/login/success',
   '/auth/callback',
   '/auth/sso',
   '/auth/sso-callback',
   '/auth/verify',
-  '/api/auth/signout',  // Make sure signout endpoint is accessible
-  '/api/auth/check-session',  // Allow checking session status
-  // Add other public paths as needed
+  '/api/auth/signout',
+  '/api/auth/check-session',
+];
+
+// Define paths that should skip session validation entirely (fresh login)
+const freshAuthPaths = [
+  '/login',
+  '/auth/sso',
+  '/auth/callback',
+  '/auth/sso-callback'
 ];
 
 // Define paths that should never be cached (auth-related)
@@ -27,7 +34,6 @@ const noCachePaths = [
   '/login'
 ];
 
-// We want to avoid redirect loops, so we'll track recent redirects
 const isPublicPath = (path: string) => {
   return publicPaths.some(publicPath => 
     path === publicPath || 
@@ -35,53 +41,78 @@ const isPublicPath = (path: string) => {
   );
 };
 
-// Custom middleware for adding no-cache headers to auth routes
+const isFreshAuthPath = (path: string) => {
+  return freshAuthPaths.some(authPath => 
+    path === authPath || 
+    path.startsWith(`${authPath}/`)
+  );
+};
+
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // Create the response using the authkit middleware
-  const { session, headers, authorizationUrl } = await authkit(request, {
-    debug: process.env.NODE_ENV === 'development'
-  });
-
-  // Handle what to do based on the session status
-  let response: NextResponse;
-  
-  // Check if this is a protected route and user isn't authenticated
-  const needsAuth = !isPublicPath(pathname) && !session.user;
-  if (needsAuth) {
-    // User isn't authenticated and the path needs auth
-    if (authorizationUrl) {
-      response = NextResponse.redirect(authorizationUrl);
-    } else {
-      // If no authorization URL is available, redirect to login
-      response = NextResponse.redirect(`${request.nextUrl.origin}/login`);
-    }
-  } else {
-    // User has valid session or the path is public
-    response = NextResponse.next({
-      headers
-    });
-  }
-  
-  // Add cache control headers to auth-related paths to prevent caching
-  const shouldNotCache = noCachePaths.some(path => pathname.startsWith(path));
-  if (shouldNotCache) {
+  // For fresh auth paths, skip session validation entirely
+  if (isFreshAuthPath(pathname)) {
+    console.log(`Skipping session check for fresh auth path: ${pathname}`);
+    
+    // Create response without session validation
+    const response = NextResponse.next();
+    
+    // Add no-cache headers
     response.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
     response.headers.set('Pragma', 'no-cache');
     response.headers.set('Expires', '0');
+    
+    return response;
   }
   
-  return response;
+  // For all other paths, run normal authkit middleware
+  try {
+    const { session, headers, authorizationUrl } = await authkit(request, {
+      debug: process.env.NODE_ENV === 'development'
+    });
+
+    let response: NextResponse;
+    
+    // Check if this is a protected route and user isn't authenticated
+    const needsAuth = !isPublicPath(pathname) && !session.user;
+    if (needsAuth) {
+      if (authorizationUrl) {
+        response = NextResponse.redirect(authorizationUrl);
+      } else {
+        response = NextResponse.redirect(`${request.nextUrl.origin}/login`);
+      }
+    } else {
+      response = NextResponse.next({ headers });
+    }
+    
+    // Add cache control headers to auth-related paths
+    const shouldNotCache = noCachePaths.some(path => pathname.startsWith(path));
+    if (shouldNotCache) {
+      response.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
+      response.headers.set('Pragma', 'no-cache');
+      response.headers.set('Expires', '0');
+    }
+    
+    return response;
+  } catch (error) {
+    console.error('Middleware error:', error);
+    
+    // If middleware fails, allow public paths through
+    if (isPublicPath(pathname)) {
+      const response = NextResponse.next();
+      response.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
+      return response;
+    }
+    
+    // For protected paths, redirect to login
+    return NextResponse.redirect(`${request.nextUrl.origin}/login`);
+  }
 }
 
-// Match against all pages except static assets
 export const config = { 
   matcher: [
-    // Match all paths except static assets
     '/((?!_next/static|_next/image|favicon.ico|.*\\.png$).*)',
-    
-    // Explicitly match all auth-related paths to ensure middleware runs on them
     '/auth/:path*',
     '/api/auth/:path*',
     '/login',

@@ -9,6 +9,43 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [authError, setAuthError] = useState(false)
+  const [showSessionExpired, setShowSessionExpired] = useState(false)
+  const [isInAuthFlow, setIsInAuthFlow] = useState(false)
+  
+  // Check if we're currently in an auth flow
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const checkAuthFlow = () => {
+        const isAuthTransitioning = window.sessionStorage.getItem('auth_transitioning') === 'true';
+        const isOnAuthPath = window.location.pathname.includes('/auth/') || 
+                            window.location.pathname.includes('/login') ||
+                            window.location.pathname.includes('/callback');
+        const hasAuthParams = window.location.search.includes('code=') || 
+                             window.location.search.includes('state=');
+        
+        const inAuthFlow = isAuthTransitioning || isOnAuthPath || hasAuthParams;
+        setIsInAuthFlow(inAuthFlow);
+        
+        if (inAuthFlow) {
+          console.log("Currently in auth flow - suppressing session expired messages");
+          setShowSessionExpired(false);
+          setAuthError(false);
+        }
+      };
+      
+      checkAuthFlow();
+      
+      // Listen for URL changes during navigation
+      const handleLocationChange = () => {
+        setTimeout(checkAuthFlow, 100); // Small delay to let navigation complete
+      };
+      
+      window.addEventListener('popstate', handleLocationChange);
+      return () => {
+        window.removeEventListener('popstate', handleLocationChange);
+      };
+    }
+  }, []);
   
   // Check if we're in a logout transition
   useEffect(() => {
@@ -16,17 +53,19 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
       const isAuthTransitioning = window.sessionStorage.getItem('auth_transitioning') === 'true';
       if (isAuthTransitioning) {
         console.log("Auth is in transitioning state (logout in progress)");
+        setIsInAuthFlow(true); // Treat logout as auth flow
         setAuthError(true);
         
-        // Clear the flag after a short delay
+        // Clear the flag after a longer delay
         setTimeout(() => {
           window.sessionStorage.removeItem('auth_transitioning');
-        }, 5000);
+          setIsInAuthFlow(false);
+        }, 10000); // Longer timeout for logout
       }
     }
   }, []);
   
-  // Wrap auth hooks in try/catch to handle transition states during logout
+  // Safely access auth hooks
   let auth, isBackendAuthenticated, isBackendLoading;
   try {
     const authResult = useAuth();
@@ -37,7 +76,10 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     isBackendLoading = backendAuthResult.isLoading;
   } catch (error) {
     console.error("Auth error in ProtectedRoute:", error);
-    setAuthError(true);
+    // Only set auth error if we're not in an auth flow
+    if (!isInAuthFlow) {
+      setAuthError(true);
+    }
     auth = { loading: false, user: null };
     isBackendAuthenticated = false;
     isBackendLoading = false;
@@ -46,32 +88,65 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   const [hasCheckedAuth, setHasCheckedAuth] = useState(false)
 
   useEffect(() => {
-    // Handle auth transition errors
-    if (authError) {
-      // If we hit an auth error, redirect to login after a short delay
+    if (typeof window !== 'undefined') {
+      const isOnAuthPath = window.location.pathname.includes('/auth/') || 
+                          window.location.pathname.includes('/login') ||
+                          window.location.pathname.includes('/dashboard') ||
+                          window.location.search.includes('code=');
+      
+      if (isOnAuthPath) {
+        // Never show session expired on auth-related paths
+        setShowSessionExpired(false);
+        setAuthError(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    // Never show session expired if we're in an auth flow
+    if (isInAuthFlow) {
+      setShowSessionExpired(false);
+      return;
+    }
+    
+    // Handle auth transition errors only if not in auth flow
+    if (authError && !isInAuthFlow) {
+      // Much longer delay before showing session expired
       const timer = setTimeout(() => {
-        if (typeof window !== 'undefined') {
-          window.location.href = '/auth/sso?fresh=true';
-        }
-      }, 2000);
+        setShowSessionExpired(true);
+        
+        // Then redirect after showing the message
+        setTimeout(() => {
+          if (typeof window !== 'undefined') {
+            window.location.href = '/auth/sso?fresh=true';
+          }
+        }, 2000);
+      }, 3000); // Wait 3 seconds before showing session expired
       
       return () => clearTimeout(timer);
     }
     
+    // Don't show session expired if we're still loading auth
+    if (auth?.loading || isBackendLoading) {
+      setShowSessionExpired(false);
+      return;
+    }
+    
     // Only perform the auth check once when the component mounts
-    // or when auth state actually changes, not on route navigation
     if (hasCheckedAuth) {
       return
     }
 
-    // Only proceed when both auth states are settled
-    if (!auth.loading && !isBackendLoading) {
+    // Only proceed when both auth states are settled and not in auth flow
+    if (!auth.loading && !isBackendLoading && !isInAuthFlow) {
       if (!auth.user) {
-        // Not authenticated with WorkOS, redirect to login
-        router.push("/login")
+        // Add delay before redirecting to avoid flash during fresh login
+        const redirectTimer = setTimeout(() => {
+          router.push("/login");
+        }, 1000); // Longer delay
+        
+        return () => clearTimeout(redirectTimer);
       } else if (!isBackendAuthenticated) {
-        // Authenticated with WorkOS but not with backend
-        // This should be rare due to our caching improvements
         console.log("Authenticated with WorkOS but not with backend yet")
       }
       
@@ -79,10 +154,10 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
       setHasCheckedAuth(true)
       setLoading(false)
     }
-  }, [auth?.user, auth?.loading, isBackendAuthenticated, isBackendLoading, hasCheckedAuth, router, authError])
+  }, [auth?.user, auth?.loading, isBackendAuthenticated, isBackendLoading, hasCheckedAuth, router, authError, isInAuthFlow])
   
-  // Show error state if we encountered auth transition issues
-  if (authError) {
+  // Never show session expired during auth flow
+  if (authError && showSessionExpired && !isInAuthFlow) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="bg-white p-6 rounded-lg shadow-md max-w-md w-full text-center">
@@ -101,8 +176,8 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     )
   }
   
-  // Simple loading state for the initial auth check
-  if (loading && !hasCheckedAuth) {
+  // Show loading state for initial auth check or during transitions
+  if ((loading && !hasCheckedAuth) || isInAuthFlow) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>

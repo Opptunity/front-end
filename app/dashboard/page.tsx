@@ -71,6 +71,28 @@ export default function DashboardPage() {
     fetchUserAssessments()
   }, [auth.user, backendUser]) // Refresh when user changes
   
+  useEffect(() => {
+    // Clear any auth transition flags when we successfully reach dashboard
+    if (typeof window !== 'undefined') {
+      // Clear all auth-related flags
+      window.sessionStorage.removeItem('auth_transitioning');
+      window.sessionStorage.removeItem('suppress_session_expired');
+      
+      // Clear any error states that might be lingering
+      const clearErrorStates = () => {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('error')) {
+          url.searchParams.delete('error');
+          window.history.replaceState({}, document.title, url.toString());
+        }
+      };
+      
+      clearErrorStates();
+      
+      console.log('Dashboard loaded - all auth flags cleared');
+    }
+  }, []);
+  
   const handleLogout = async () => {
     try {
       console.log('Starting logout process...');

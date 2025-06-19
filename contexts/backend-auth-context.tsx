@@ -162,17 +162,31 @@ export function BackendAuthProvider({ children }: { children: ReactNode }) {
       if (auth.loading) return;
 
       if (auth.user) {
+        // Check if we're in a fresh login process
+        let isInAuthFlow = false;
+        if (typeof window !== 'undefined') {
+          isInAuthFlow = window.location.pathname.includes('/auth/') || 
+                        window.location.pathname.includes('/login') ||
+                        window.sessionStorage.getItem('auth_transitioning') === 'true';
+        }
+        
+        if (isInAuthFlow) {
+          console.log('In auth flow, skipping cache check');
+          await registerOrAuthenticateUser();
+          setIsLoading(false);
+          return;
+        }
+
         // Check if we have a force full auth flag set during logout
         const forceFullAuth = localStorage.getItem('forceFullAuth');
         if (forceFullAuth === 'true') {
-          // Remove the flag and don't auto-authenticate
           localStorage.removeItem('forceFullAuth');
           setBackendUser(null);
           setIsLoading(false);
           return;
         }
 
-        // Check cache directly
+        // Check cache for existing auth
         const cachedData = localStorage.getItem(BACKEND_AUTH_STORAGE_KEY);
         let isValidCache = false;
         if (cachedData) {
@@ -189,6 +203,7 @@ export function BackendAuthProvider({ children }: { children: ReactNode }) {
             localStorage.removeItem(BACKEND_AUTH_STORAGE_KEY);
           }
         }
+        
         if (!isValidCache) {
           await registerOrAuthenticateUser();
         }
