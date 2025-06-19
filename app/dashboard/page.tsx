@@ -300,7 +300,7 @@ export default function DashboardPage() {
             {/* Recent Activity Section */}
             <div>
               <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-                <span className="mr-2">📊</span> {t("recentActivity") || "Recent Activity"}
+                <span className="mr-2">📊</span> {t("Recent Activity") || "Recent Activity"}
               </h3>
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                 {assessmentsLoading ? (
@@ -356,7 +356,7 @@ export default function DashboardPage() {
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                     </div>
                     <p className="text-gray-500 text-lg">
-                      {t("noRecentActivity") || "No recent activity"}
+                      {t("No Recent Activity") || "No recent activity"}
                     </p>
                     <p className="text-gray-400 mt-1">
                       Complete an assessment to see your results here

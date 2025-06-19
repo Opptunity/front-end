@@ -19,15 +19,16 @@ export async function GET(request: NextRequest) {
     
     if (userError) {
       console.error('Error finding user by email:', userError)
-      // Return demo data if we can't find the user
-      return NextResponse.json(getDemoAssessments())
+      // Return empty array instead of demo data
+      return NextResponse.json([])
     }
     
     const userId = userData?.id
     
     if (!userId) {
       console.error('No user found with email:', email)
-      return NextResponse.json(getDemoAssessments())
+      // Return empty array instead of demo data
+      return NextResponse.json([])
     }
     
     // Try to get just the assessment IDs first to check if records exist
@@ -39,8 +40,8 @@ export async function GET(request: NextRequest) {
     
     if (idError || !assessmentIds || assessmentIds.length === 0) {
       console.error('Error fetching assessment IDs or no assessments found:', idError)
-      // Return demo data if no assessments found or there was an error
-      return NextResponse.json(getDemoAssessments())
+      // Return empty array instead of demo data
+      return NextResponse.json([])
     }
     
     // If we get here, assessments exist, so let's fetch all fields
@@ -53,7 +54,8 @@ export async function GET(request: NextRequest) {
     
     if (error) {
       console.error('Error fetching full assessment data:', error)
-      return NextResponse.json(getDemoAssessments())
+      // Return empty array instead of demo data
+      return NextResponse.json([])
     }
     
     // Map whatever fields we have to the expected format
@@ -94,41 +96,11 @@ export async function GET(request: NextRequest) {
       }
     })
     
-    // If no assessments found after formatting, return demo assessments
-    if (formattedAssessments.length === 0) {
-      return NextResponse.json(getDemoAssessments())
-    }
-    
+    // Return the actual assessments (empty array if none found)
     return NextResponse.json(formattedAssessments)
   } catch (error) {
     console.error('Unexpected error in assessments fetch:', error)
-    // Return demo data as fallback on error
-    return NextResponse.json(getDemoAssessments())
+    // Return empty array instead of demo data
+    return NextResponse.json([])
   }
-}
-
-// Helper function to create demo assessments for new users
-function getDemoAssessments() {
-  return [
-    {
-      id: 'demo1',
-      title: 'Full Stack Developer Skills',
-      summary: 'Assessment for your skills as a Full Stack Developer, including frontend and backend technologies.',
-      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
-      UserAssessment: {
-        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        score: 85
-      }
-    },
-    {
-      id: 'demo2',
-      title: 'JavaScript Proficiency',
-      summary: 'Evaluation of your JavaScript skills including modern ES6+ features and common patterns.',
-      createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 days ago
-      UserAssessment: {
-        createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-        score: 92
-      }
-    }
-  ]
 } 
