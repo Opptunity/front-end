@@ -190,7 +190,7 @@ export default function DashboardPage() {
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
               <div className="p-6 sm:p-8">
                 <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-4">
-                  {t("skillsDashboard") || "Skills Dashboard"}
+                  {t("Dashboard") || "Dashboard"}
                 </h2>
                 <p className="text-gray-600 max-w-3xl">
                   Track your skill development, access personalized AI agents, and take assessments to identify areas for growth.
@@ -204,7 +204,7 @@ export default function DashboardPage() {
                 <span className="mr-2">🤖</span> {t("your Agents") || "Your Agents"}
               </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* Career Agent Button */}
                 <motion.div 
                   whileHover={{ y: -5 }}
@@ -259,6 +259,43 @@ export default function DashboardPage() {
                     <Link href="/ai-agent" className="block">
                       <AnimatedButton className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 flex items-center justify-center">
                         <span>{t("useGeneralAgent") || "Use General Agent"}</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                      </AnimatedButton>
+                    </Link>
+                  </div>
+                </motion.div>
+
+                {/* Engineer Ranking Button - NOUVEAU */}
+                <motion.div 
+                  whileHover={{ y: -5 }}
+                  transition={{ type: "spring", stiffness: 300 }}
+                  className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-all duration-200"
+                >
+                  <div className="p-1">
+                    <div className="bg-gradient-to-r from-orange-500 to-red-600 h-2 rounded-t-lg"></div>
+                  </div>
+                  <div className="p-6">
+                    <div className="flex items-center mb-4">
+                      <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 mr-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+                          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+                          <path d="M4 22h16"></path>
+                          <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path>
+                          <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path>
+                          <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path>
+                        </svg>
+                      </div>
+                      <h4 className="text-lg font-semibold text-gray-800">
+                        Engineer Ranking
+                      </h4>
+                    </div>
+                    <p className="text-gray-600 mb-6 h-12">
+                      Rank engineers by AI for specific tasks and projects
+                    </p>
+                    <Link href="/engineer-ranking" className="block">
+                      <AnimatedButton className="w-full bg-gradient-to-r from-orange-600 to-red-600 text-white hover:from-orange-700 hover:to-red-700 flex items-center justify-center">
+                        <span>Rank Engineers</span>
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
                       </AnimatedButton>
                     </Link>

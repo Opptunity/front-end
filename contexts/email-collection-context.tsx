@@ -22,7 +22,12 @@ export const EmailCollectionProvider = ({ children }: { children: React.ReactNod
   const [isEmailCollected, setIsEmailCollected] = useState(false)
   const [showEmailDialog, setShowEmailDialog] = useState(false)
   const router = useRouter()
-  const searchParams = useSearchParams()
+  let searchParams = null
+  try {
+    searchParams = useSearchParams()
+  } catch (error) {
+    console.warn("SearchParams not available during prerendering")
+  }
   const auth = useAuth()
   const { backendUser } = useBackendAuth()
 

@@ -1,11 +1,17 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/contexts/language-context";
 
 export default function SSOSignIn() {
   const { t } = useLanguage() || { t: (key: string) => key };
+  
+  useEffect(() => {
+    // Rediriger automatiquement vers la route API
+    window.location.href = '/api/auth/sso';
+  }, []);
   
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">

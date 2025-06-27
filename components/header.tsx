@@ -9,12 +9,19 @@ import LanguageSwitcher from "./language-switcher"
 import { useLanguage } from "@/contexts/language-context"
 import { useEmailCollection } from "@/contexts/email-collection-context"
 import { useRouter } from "next/navigation"
+import { useAuth } from '@workos-inc/authkit-nextjs/components'
+import { useBackendAuth } from '@/contexts/backend-auth-context'
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const { t, isRTL } = useLanguage()
   const { setShowEmailDialog } = useEmailCollection()
   const router = useRouter()
+  const auth = useAuth()
+  const { isBackendAuthenticated } = useBackendAuth()
+
+  // Check if user is authenticated via WorkOS or backend
+  const isLoggedIn = !!auth.user || isBackendAuthenticated
 
   const navItems = [
     { name: t("features"), href: "#value-props" },
@@ -80,32 +87,21 @@ export default function Header() {
               transition={{ duration: 0.3, delay: 0.4 }}
               className="flex space-x-4"
             >
-             {/* <Link href="/login">
-                <AnimatedButton className="bg-white text-blue-600 border border-blue-600 hover:bg-blue-50">
-                  {t("login") || "Log In"}
-                </AnimatedButton>
-              </Link> 
-              */}
+              {/* Conditionally render Login or Dashboard based on authentication */}
+              {isLoggedIn ? (
+                <Link href="/dashboard">
+                  <AnimatedButton className="bg-white text-gray-700 border border-gray-300 hover:bg-gray-50">
+                    {t("dashboard") || "Dashboard"}
+                  </AnimatedButton>
+                </Link>
+              ) : (
+                <Link href="/auth/sso">
+                  <AnimatedButton className="bg-white text-gray-700 border border-gray-300 hover:bg-gray-50">
+                    {t("login") || "Log In"}
+                  </AnimatedButton>
+                </Link>
+              )}
               
-              <Link href="/auth/sso">
-                <AnimatedButton className="bg-white text-gray-700 border border-gray-300 hover:bg-gray-50">
-                  {t("login") || "Log In"}
-                </AnimatedButton>
-              </Link>
-              
-              {/* <Link href="/auth/signup">
-                <AnimatedButton className="bg-blue-600 text-white hover:bg-blue-700">
-                  {t("signup") || "Sign Up"}
-                </AnimatedButton>
-              </Link> */}
-              
-              {/* SA button hidden for now
-              <button onClick={handleShowEmailPopup}>
-                <AnimatedButton className="bg-green-600 text-white hover:bg-green-700">
-                  SA
-                </AnimatedButton>
-              </button>
-              */}
               <Link href="/#waitlist-form">
                 <AnimatedButton className="bg-blue-600 text-white hover:bg-blue-700">{t("joinWaitlist")}</AnimatedButton>
               </Link>
@@ -162,31 +158,29 @@ export default function Header() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: 0.3 }}
               >
-                <Link href="/login" onClick={closeAllMenus}>
-                  <AnimatedButton className="w-full bg-white text-blue-600 border border-blue-600 hover:bg-blue-50">
-                    {t("login") || "Log In"}
-                  </AnimatedButton>
-                </Link>
+                {/* Conditionally render Login or Dashboard based on authentication */}
+                {isLoggedIn ? (
+                  <Link href="/dashboard" onClick={closeAllMenus}>
+                    <AnimatedButton className="w-full bg-white text-gray-700 border border-gray-300 hover:bg-gray-50">
+                      {t("dashboard") || "Dashboard"}
+                    </AnimatedButton>
+                  </Link>
+                ) : (
+                  <>
+                    <Link href="/login" onClick={closeAllMenus}>
+                      <AnimatedButton className="w-full bg-white text-blue-600 border border-blue-600 hover:bg-blue-50">
+                        {t("login") || "Log In"}
+                      </AnimatedButton>
+                    </Link>
+                    
+                    <Link href="/auth/sso" onClick={closeAllMenus}>
+                      <AnimatedButton className="w-full bg-white text-gray-700 border border-gray-300 hover:bg-gray-50">
+                        {t("signInWithSSO") || "Sign in with SSO"}
+                      </AnimatedButton>
+                    </Link>
+                  </>
+                )}
                 
-                <Link href="/auth/sso" onClick={closeAllMenus}>
-                  <AnimatedButton className="w-full bg-white text-gray-700 border border-gray-300 hover:bg-gray-50">
-                    {t("signInWithSSO") || "Sign in with SSO"}
-                  </AnimatedButton>
-                </Link>
-                
-                {/* <Link href="/auth/signup" onClick={closeAllMenus}>
-                  <AnimatedButton className="w-full bg-blue-600 text-white hover:bg-blue-700">
-                    {t("signup") || "Sign Up"}
-                  </AnimatedButton>
-                </Link> */}
-                
-                {/* SA button hidden for now
-                <button onClick={handleShowEmailPopup}>
-                  <AnimatedButton className="w-full bg-green-600 text-white hover:bg-green-700">
-                    SA
-                  </AnimatedButton>
-                </button>
-                */}
                 <Link href="/#waitlist-form" onClick={closeAllMenus}>
                   <AnimatedButton className="w-full bg-blue-600 text-white hover:bg-blue-700">
                     {t("joinWaitlist")}

@@ -1,4 +1,4 @@
-{
+export default {
   "loginWelcome": "Welcome Back",
   "emailAddress": "Email Address",
   "emailPlaceholder": "you@example.com",
@@ -23,5 +23,6 @@
   "accountCreated": "Account created successfully",
   "alreadyHaveAccount": "Already have an account?",
   "backToHome": "Back to Home",
-  "login": "Log In"
+  "login": "Log In",
+  "dashboard": "Dashboard"
 } 

@@ -28,7 +28,7 @@ const translations = {
     heroSubtitle: "Accelerate learning, spark innovation, and track ROI—all in one seamless platform.",
 
     // Dashboard
-    dashboard: "Skills Dashboard",
+    dashboard: "Dashboard",
     welcomeBack: "Welcome back, Alex! Here's your team's progress",
     teamMembers: "Team Members",
     skillsAcquired: "Skills Acquired",

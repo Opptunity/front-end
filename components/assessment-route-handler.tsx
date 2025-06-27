@@ -10,12 +10,20 @@ import { useBackendAuth } from '@/contexts/backend-auth-context'
 export default function AssessmentRouteHandler() {
   const pathname = usePathname()
   const router = useRouter()
-  const searchParams = useSearchParams()
+  
+  // Gérer l'absence de searchParams pendant le prerendering
+  let searchParams = null
+  try {
+    searchParams = useSearchParams()
+  } catch (error) {
+    console.warn("SearchParams not available during prerendering")
+  }
+  
   const { isEmailCollected, showEmailDialog, setShowEmailDialog } = useEmailCollection()
   const auth = useAuth()
   const { backendUser } = useBackendAuth()
   
-  // Determine if user is coming from dashboard
+  // Determine if user is coming from dashboard (avec fallback)
   const isFromDashboard = searchParams?.get('source') === 'dashboard'
   
   useEffect(() => {
