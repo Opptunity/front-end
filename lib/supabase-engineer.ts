@@ -3,18 +3,29 @@ import { createClient } from '@supabase/supabase-js'
 // Configuration pour la deuxième base Supabase dédiée aux ingénieurs
 const engineerSupabaseUrl = process.env.NEXT_PUBLIC_ENGINEER_SUPABASE_URL || ''
 const engineerSupabaseAnonKey = process.env.NEXT_PUBLIC_ENGINEER_SUPABASE_ANON_KEY || ''
+const engineerSupabaseServiceKey = process.env.ENGINEER_SUPABASE_SERVICE_ROLE_KEY || ''
 
 if (!engineerSupabaseUrl || !engineerSupabaseAnonKey) {
   console.error('Missing Engineer Supabase environment variables')
   console.error('URL:', engineerSupabaseUrl ? 'OK' : 'MISSING')
-  console.error('Key:', engineerSupabaseAnonKey ? 'OK' : 'MISSING')
+  console.error('Anon Key:', engineerSupabaseAnonKey ? 'OK' : 'MISSING')
+  console.error('Service Key:', engineerSupabaseServiceKey ? 'OK' : 'MISSING (will fallback to anon key)')
 }
 
-// Client public pour les opérations courantes
+// Client public pour les opérations courantes (lectures)
 export const engineerSupabase = createClient(engineerSupabaseUrl, engineerSupabaseAnonKey)
 
-// Client admin utilisant la même clé anon
-export const engineerSupabaseAdmin = createClient(engineerSupabaseUrl, engineerSupabaseAnonKey)
+// Client admin utilisant la clé service role si disponible, sinon anon key
+export const engineerSupabaseAdmin = createClient(
+  engineerSupabaseUrl, 
+  engineerSupabaseServiceKey || engineerSupabaseAnonKey,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+)
 
 // Types ajustés selon votre schéma réel
 export type IngenieurDB = {
@@ -23,6 +34,7 @@ export type IngenieurDB = {
   prenom: string
   email: string
   equipe_id?: string
+  adresse_residence?: string
   // Données enrichies
   competences?: IngenieurCompetenceDB[]
   projets_affectes?: ProjetAffecte[]
@@ -246,14 +258,17 @@ async function getProjetsActifs(ingenieurId: string): Promise<ProjetActif[]> {
     return []
   }
 
-  return (data || []).map(item => ({
-    projet_id: item.projets.projet_id,
-    nom_projet: item.projets.nom_projet,
-    priorite: item.projets.priorite,
-    allocation_pourcentage: item.allocation_pourcentage,
-    date_debut: item.projets.date_debut,
-    date_fin_prevue: item.projets.date_fin_prevue
-  }))
+  return (data || []).map(item => {
+    const projet = Array.isArray(item.projets) ? item.projets[0] : item.projets
+    return {
+      projet_id: projet?.projet_id || '',
+      nom_projet: projet?.nom_projet || '',
+      priorite: projet?.priorite || '',
+      allocation_pourcentage: item.allocation_pourcentage || 0,
+      date_debut: projet?.date_debut || '',
+      date_fin_prevue: projet?.date_fin_prevue || ''
+    }
+  })
 }
 
 // Fonction pour récupérer les absences actuelles d'un ingénieur
@@ -494,5 +509,195 @@ export async function checkTablesExist() {
       affectation_projets: false,
       assignation_taches: false
     }
+  }
+}
+
+// ================================
+// ONBOARDING FUNCTIONS
+// ================================
+
+export async function createNewEngineer(onboardingData: any) {
+  if (!engineerSupabaseUrl || !engineerSupabaseAnonKey) {
+    throw new Error('Configuration Supabase Engineer manquante')
+  }
+
+  try {
+    const { personal_info, technical_background, current_skills } = onboardingData
+
+    // 1. Create the engineer record (let database auto-generate the ID)
+    const { data: engineerData, error: engineerError } = await engineerSupabaseAdmin
+      .from('ingenieurs')
+      .insert({
+        nom: personal_info.full_name.split(' ').slice(1).join(' ') || personal_info.full_name,
+        prenom: personal_info.full_name.split(' ')[0] || personal_info.full_name,
+        email: personal_info.email,
+        equipe_id: personal_info.department || null,
+        adresse_residence: personal_info.adresse_residence || personal_info.residence_address || null // Handle both field names
+      })
+      .select()
+      .single()
+
+    if (engineerError) {
+      console.error('Error creating engineer:', engineerError)
+      throw new Error(`Failed to create engineer: ${engineerError.message}`)
+    }
+
+    console.log('Engineer created successfully:', engineerData)
+
+    // Get the generated engineer ID
+    const ingenieurId = engineerData.ingenieur_id
+
+    // 2. Add engineer's skills
+    if (current_skills && current_skills.length > 0) {
+      await addEngineerSkills(ingenieurId, current_skills)
+    }
+
+    // 3. Store onboarding profile data (optional - you could create a separate table for this)
+    await storeOnboardingProfile(ingenieurId, onboardingData)
+
+    return {
+      engineer: engineerData,
+      message: `Engineer ${personal_info.full_name} created successfully with ${current_skills?.length || 0} skills`
+    }
+
+  } catch (error) {
+    console.error('Error in createNewEngineer:', error)
+    throw error
+  }
+}
+
+export async function addEngineerSkills(ingenieurId: string | number, skills: any[]) {
+  try {
+    // First, ensure all competences exist
+    const competencePromises = skills.map(async (skill) => {
+      await ensureCompetenceExists(skill.skill_name, skill.category)
+    })
+    
+    await Promise.all(competencePromises)
+
+    // Then, add engineer competences
+    const engineerCompetences = skills.map(skill => ({
+      ingenieur_id: ingenieurId,
+      competence_id: generateCompetenceId(skill.skill_name),
+      niveau: skill.self_assessed_level
+    }))
+
+    const { data, error } = await engineerSupabaseAdmin
+      .from('ingenieur_competences')
+      .insert(engineerCompetences)
+      .select()
+
+    if (error) {
+      console.error('Error adding engineer skills:', error)
+      throw new Error(`Failed to add skills: ${error.message}`)
+    }
+
+    console.log(`Added ${data.length} skills for engineer ${ingenieurId}`)
+    return data
+
+  } catch (error) {
+    console.error('Error in addEngineerSkills:', error)
+    throw error
+  }
+}
+
+export async function ensureCompetenceExists(skillName: string, category: string) {
+  const competenceId = generateCompetenceId(skillName)
+
+  try {
+    // Check if competence already exists
+    const { data: existingCompetence, error: checkError } = await engineerSupabase
+      .from('competences')
+      .select('competence_id')
+      .eq('competence_id', competenceId)
+      .single()
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      throw checkError
+    }
+
+    // If competence doesn't exist, create it
+    if (!existingCompetence) {
+      const { data, error } = await engineerSupabaseAdmin
+        .from('competences')
+        .insert({
+          competence_id: competenceId,
+          nom_competence: skillName,
+          categorie: category
+        })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error creating competence:', error)
+        throw new Error(`Failed to create competence: ${error.message}`)
+      }
+
+      console.log('Created new competence:', data)
+      return data
+    }
+
+    return existingCompetence
+
+  } catch (error) {
+    console.error('Error in ensureCompetenceExists:', error)
+    throw error
+  }
+}
+
+export async function storeOnboardingProfile(ingenieurId: string | number, onboardingData: any) {
+  try {
+    // You could create a separate onboarding_profiles table to store the full onboarding data
+    // For now, we'll just log it as the main engineer data is already stored
+    console.log(`Onboarding data for engineer ${ingenieurId}:`, {
+      technical_background: onboardingData.technical_background,
+      learning_goals: onboardingData.learning_goals,
+      team_preferences: onboardingData.team_preferences,
+      onboarding_status: onboardingData.onboarding_status
+    })
+
+    // TODO: If you want to store the full onboarding profile data, 
+    // create an onboarding_profiles table and insert the data here
+    
+    return true
+
+  } catch (error) {
+    console.error('Error storing onboarding profile:', error)
+    throw error
+  }
+}
+
+// Helper function to generate consistent competence IDs
+function generateCompetenceId(skillName: string): number {
+  // Create a simple hash of the skill name to get consistent integer ID
+  let hash = 0;
+  const cleanName = skillName.toLowerCase().trim();
+  for (let i = 0; i < cleanName.length; i++) {
+    const char = cleanName.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  // Ensure positive integer and reasonable range
+  return Math.abs(hash) % 999999 + 1; // Range: 1-999999
+}
+
+// Function to get engineer by email (useful for checking if engineer already exists)
+export async function getEngineerByEmail(email: string) {
+  try {
+    const { data, error } = await engineerSupabase
+      .from('ingenieurs')
+      .select('*')
+      .eq('email', email)
+      .single()
+
+    if (error && error.code !== 'PGRST116') {
+      throw error
+    }
+
+    return data
+
+  } catch (error) {
+    console.error('Error getting engineer by email:', error)
+    return null
   }
 } 

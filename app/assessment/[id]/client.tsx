@@ -346,31 +346,6 @@ export function AssessmentPageClient({ id }: { id: string }) {
                 id={id} 
                 onRoleSelect={(role) => setSelectedRole(role)}
               />
-
-              {/* Debug Panel */}
-              <Card className="mt-6 border-dashed border-red-300">
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <AlertCircle className="mr-2 h-5 w-5 text-red-500" />
-                    Debug Info
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-xs overflow-auto max-h-96">
-                  <div>
-                    <h3 className="font-bold mb-1">Raw Skill Gaps:</h3>
-                    <pre className="bg-gray-100 p-2 rounded overflow-auto">
-                      {JSON.stringify(assessment?.skillGapAnalysis.criticalGaps, null, 2)}
-                    </pre>
-                  </div>
-                  
-                  <div>
-                    <h3 className="font-bold mb-1">All Assessment Data:</h3>
-                    <pre className="bg-gray-100 p-2 rounded overflow-auto">
-                      {JSON.stringify(assessment, null, 2)}
-                    </pre>
-                  </div>
-                </CardContent>
-              </Card>
             </TabsContent>
             <TabsContent value="test" className="mt-4">
               <div className="space-y-6">

@@ -1,6 +1,7 @@
-import { generateText } from "ai";
+import { generateText, generateObject } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { xai } from "@ai-sdk/xai";
+import { z } from "zod";
 import type { 
   Ingenieur, 
   Tache, 
@@ -10,6 +11,35 @@ import type {
   TacheCompetenceRequise 
 } from "@/lib/types/engineer-ranking";
 
+// Définir les schemas Zod pour la validation
+const TacheSchema = z.object({
+  nom: z.string(),
+  description: z.string(),
+  type: z.string(),
+  complexite: z.number().min(1).max(5),
+  peut_commencer_immediatement: z.boolean(),
+  dependances: z.array(z.string()),
+  competences_cles: z.array(z.string()),
+  estimation_jours: z.number(),
+  assignable_en_parallele: z.boolean().default(true)
+});
+
+const WorkstreamSchema = z.object({
+  nom_workstream: z.string(),
+  peut_demarrer_jour_1: z.boolean(),
+  equipe_recommandee: z.number(),
+  description_workstream: z.string(),
+  taches_simultanees: z.array(TacheSchema)
+});
+
+const ProjectDecompositionSchema = z.object({
+  workstreams_paralleles: z.array(WorkstreamSchema),
+  synchronisation_points: z.array(z.object({
+    jour: z.number(),
+    description: z.string()
+  })).optional()
+});
+
 export class EngineerRankingAI {
   private model;
 
@@ -18,161 +48,167 @@ export class EngineerRankingAI {
   }
 
   /**
-   * Classe les ingénieurs selon leur compatibilité avec une tâche ET leur disponibilité
+   * Ranks engineers according to their compatibility with a task AND their availability
    */
   async rankEngineersForTask(
-    tacheDescription: string,
-    ingenieurs: any[],
-    competencesRequises?: any[]
+    taskDescription: string,
+    engineers: any[],
+    requiredSkills?: any[]
   ): Promise<any[]> {
     try {
-      console.log("Début du classement AI avec disponibilité pour", ingenieurs.length, "ingénieurs");
+      console.log("Starting AI ranking with availability for", engineers.length, "engineers");
 
-      const prompt = this.buildEnhancedRankingPromptWithAvailability(tacheDescription, ingenieurs, competencesRequises);
+      const prompt = this.buildEnhancedRankingPromptWithAvailability(taskDescription, engineers, requiredSkills);
       
       const { text } = await generateText({
         model: this.model,
         prompt,
       });
 
-      const rankings = this.parseRankingResponse(text, ingenieurs);
+      const rankings = this.parseRankingResponse(text, engineers);
       
-      console.log("Classement AI avec disponibilité terminé avec", rankings.length, "résultats");
+      console.log("AI ranking with availability completed with", rankings.length, "results");
       return rankings;
 
     } catch (error) {
-      console.error("Erreur lors du classement AI:", error);
-      throw new Error("Échec du classement par intelligence artificielle");
+      console.error("Error during AI ranking:", error);
+      throw new Error("AI ranking failed");
     }
   }
 
   /**
-   * Construit le prompt pour l'AI avec informations de disponibilité
+   * Builds the prompt for AI with availability information
    */
   private buildEnhancedRankingPromptWithAvailability(
-    tacheDescription: string,
-    ingenieurs: any[],
-    competencesRequises?: any[]
+    taskDescription: string,
+    engineers: any[],
+    requiredSkills?: any[]
   ): string {
     return `
-Tu es un expert en gestion de ressources humaines et en évaluation de compétences techniques.
-Ton rôle est de classer des ingénieurs selon leur adéquation avec une tâche spécifique EN TENANT COMPTE DE LEUR DISPONIBILITÉ.
+You are an expert in human resources management and technical skills evaluation.
+Your role is to rank engineers according to their suitability for a specific task TAKING INTO ACCOUNT THEIR AVAILABILITY.
 
-TÂCHE À ANALYSER:
-${tacheDescription}
+TASK TO ANALYZE:
+${taskDescription}
 
-${competencesRequises && competencesRequises.length > 0 ? `
-COMPÉTENCES REQUISES:
-${competencesRequises.map(cr => 
-  `- ${cr.competences?.nom_competence || 'Compétence ID: ' + cr.competence_id}: Niveau requis ${cr.niveau_requis || 'Non spécifié'}`
+${requiredSkills && requiredSkills.length > 0 ? `
+REQUIRED SKILLS:
+${requiredSkills.map(cr => 
+  `- ${cr.competences?.nom_competence || 'Skill ID: ' + cr.competence_id}: Required level ${cr.niveau_requis || 'Not specified'}`
 ).join('\n')}
 ` : ''}
 
-INGÉNIEURS À ÉVALUER (avec informations de disponibilité):
-${ingenieurs.map((ing, index) => `
-${index + 1}. ${ing.prenom} ${ing.nom} (ID: ${ing.ingenieur_id})
-   Email: ${ing.email}
+ENGINEERS TO EVALUATE (with availability information):
+${engineers.map((eng, index) => `
+${index + 1}. ${eng.prenom} ${eng.nom} (ID: ${eng.ingenieur_id})
+   Email: ${eng.email}
    
-   🚦 DISPONIBILITÉ:
-   - Statut: ${ing.disponibilite?.statut_disponibilite || 'Non calculé'}
-   - Disponibilité effective: ${ing.disponibilite?.disponibilite_effective || 100}%
-   - Allocation actuelle: ${ing.disponibilite?.allocation_totale || 0}%
-   ${ing.disponibilite?.projets_prioritaires?.length > 0 ? `
-   - ⚠️  PROJETS PRIORITAIRES EN COURS:
-   ${ing.disponibilite.projets_prioritaires.map((p: any) => `     • ${p.nom_projet} (${p.priorite}, ${p.allocation_pourcentage}%)`).join('\n')}` : ''}
-   ${ing.disponibilite?.absences_actuelles?.length > 0 ? `
-   - 🚫 ABSENCES ACTUELLES:
-   ${ing.disponibilite.absences_actuelles.map((a: any) => `     • ${a.type_absence}: ${a.date_debut} → ${a.date_fin}`).join('\n')}` : ''}
+   🚦 AVAILABILITY:
+   - Status: ${eng.disponibilite?.statut_disponibilite || 'Not calculated'}
+   - Effective availability: ${eng.disponibilite?.disponibilite_effective || 100}%
+   - Current allocation: ${eng.disponibilite?.allocation_totale || 0}%
+   ${eng.disponibilite?.projets_prioritaires?.length > 0 ? `
+   - ⚠️  PRIORITY PROJECTS IN PROGRESS:
+   ${eng.disponibilite.projets_prioritaires.map((p: any) => `     • ${p.nom_projet} (${p.priorite}, ${p.allocation_pourcentage}%)`).join('\n')}` : ''}
+   ${eng.disponibilite?.absences_actuelles?.length > 0 ? `
+   - 🚫 CURRENT ABSENCES:
+   ${eng.disponibilite.absences_actuelles.map((a: any) => `     • ${a.type_absence}: ${a.date_debut} → ${a.date_fin}`).join('\n')}` : ''}
    
-   COMPÉTENCES TECHNIQUES:
-   ${ing.ingenieur_competences && ing.ingenieur_competences.length > 0 ? 
-     ing.ingenieur_competences.map((comp: any) => 
-       `   - ${comp.competences?.nom_competence || 'Compétence inconnue'}: Niveau ${comp.niveau}/5`
+   TECHNICAL SKILLS:
+   ${eng.ingenieur_competences && eng.ingenieur_competences.length > 0 ? 
+     eng.ingenieur_competences.map((comp: any) => 
+       `   - ${comp.competences?.nom_competence || 'Unknown skill'}: Level ${comp.niveau}/5`
      ).join('\n') 
-     : '   Aucune compétence technique renseignée'}
+     : '   No technical skills recorded'}
    
-   PROJETS RÉALISÉS:
-   ${ing.projets_affectes && ing.projets_affectes.length > 0 ? 
-     ing.projets_affectes.map((projet: any) => 
-       `   - ${projet.projets?.nom_projet || 'Projet sans nom'}: ${projet.role_dans_projet || 'Rôle non spécifié'}`
+   COMPLETED PROJECTS:
+   ${eng.projets_affectes && eng.projets_affectes.length > 0 ? 
+     eng.projets_affectes.map((projet: any) => 
+       `   - ${projet.projets?.nom_projet || 'Unnamed project'}: ${projet.role_dans_projet || 'Role not specified'}`
      ).join('\n')
-     : '   Aucun projet renseigné'}
+     : '   No projects recorded'}
    
-   TÂCHES RÉALISÉES:
-   ${ing.taches_assignees && ing.taches_assignees.length > 0 ? 
-     ing.taches_assignees.map((tache: any) => 
-       `   - ${tache.taches?.nom_tache || 'Tâche sans nom'}: ${tache.taches?.statut_tache || 'Statut inconnu'}`
+   COMPLETED TASKS:
+   ${eng.taches_assignees && eng.taches_assignees.length > 0 ? 
+     eng.taches_assignees.map((tache: any) => 
+       `   - ${tache.taches?.nom_tache || 'Unnamed task'}: ${tache.taches?.statut_tache || 'Unknown status'}`
      ).join('\n')
-     : '   Aucune tâche renseignée'}
+     : '   No tasks recorded'}
 `).join('\n')}
 
-INSTRUCTIONS DE CLASSEMENT:
-1. Analyse chaque ingénieur par rapport aux exigences de la tâche
-2. Calcule un score de compatibilité de 0 à 100 pour chaque ingénieur en tenant compte de:
+RANKING INSTRUCTIONS:
+1. Analyze each engineer against the task requirements
+2. Calculate a compatibility score from 0 to 100 for each engineer considering:
 
-   FACTEURS PRINCIPAUX (70% du score):
-   - Niveau de compétences techniques requises (30%)
-   - Expérience sur des projets similaires (25%)
-   - Tâches similaires déjà réalisées (15%)
+   MAIN FACTORS (70% of score):
+   - Required technical skills level (30%)
+   - Experience on similar projects (25%)
+   - Similar tasks already completed (15%)
 
-   FACTEURS DE DISPONIBILITÉ (30% du score):
-   - Disponibilité effective (20%): Favorise fortement les ingénieurs disponibles
-   - Impact des projets prioritaires (10%): Pénalise les ingénieurs sur des projets Critiques/Hautes priorités
+   AVAILABILITY FACTORS (30% of score):
+   - Effective availability (20%): Strongly favors available engineers
+   - Impact of priority projects (10%): Penalizes engineers on Critical/High priority projects
 
-3. RÈGLES DE DISPONIBILITÉ:
-   - Ingénieur "Indisponible" → Score maximum 40/100 (peut être mentionné mais pas recommandé)
-   - Ingénieur "Très occupé" → Score maximum 60/100 
-   - Ingénieur "Partiellement occupé" → Score maximum 85/100
-   - Ingénieur "Disponible" → Aucune limite
+3. AVAILABILITY RULES:
+   - "Unavailable" engineer → Maximum score 40/100 (may be mentioned but not recommended)
+   - "Very busy" engineer → Maximum score 60/100 
+   - "Partially busy" engineer → Maximum score 85/100
+   - "Available" engineer → No limit
 
-4. BONUS/MALUS SPÉCIAUX:
-   - +10 points si disponibilité > 80%
-   - -15 points si sur projet prioritaire Critique
-   - -10 points si sur projet prioritaire Haute
-   - -25 points si en absence actuelle
+4. SPECIAL BONUSES/PENALTIES:
+   - +10 points if availability > 80%
+   - -15 points if on Critical priority project
+   - -10 points if on High priority project
+   - -25 points if currently absent
 
-5. Identifie les compétences manquantes et les points forts
-6. Fournis des recommandations spécifiques incluant l'aspect disponibilité
+5. Identify missing skills and strengths
+6. Provide specific recommendations including availability aspect
 
-Format de réponse OBLIGATOIRE (JSON valide uniquement):
+MANDATORY response format (JSON only):
 {
   "rankings": [
     {
-      "ingenieur_id": "uuid-de-l-ingenieur",
+      "ingenieur_id": ${engineers[0]?.ingenieur_id || 33},
       "score_compatibilite": 85.5,
       "rang": 1,
-      "justification_ai": "Explication détaillée incluant compétences ET disponibilité",
-      "disponibilite_impact": "Explication de l'impact de la disponibilité sur le score",
+      "justification_ai": "Detailed explanation including skills AND availability",
+      "disponibilite_impact": "Explanation of availability impact on score",
       "competences_manquantes": [
         {
-          "nom_competence": "nom",
+          "nom_competence": "name",
           "niveau_requis": 4
         }
       ],
       "competences_adequates": [
         {
-          "nom_competence": "nom",
+          "nom_competence": "name",
           "niveau_actuel": 4
         }
       ],
-      "recommandations": "Recommandations incluant gestion de la charge de travail et timeline"
+      "recommandations": "Recommendations including workload management and timeline"
     }
   ]
 }
 
-IMPORTANT: 
-- Privilégie TOUJOURS les ingénieurs les plus disponibles à compétences égales
-- Mentionne clairement les conflits de priorités si un ingénieur qualifié est sur un projet critique
-- Suggère des alternatives (formation, support d'équipe) pour les moins disponibles
-- Retourne UNIQUEMENT le JSON sans formatage markdown ni explications supplémentaires.
+CRITICAL: 
+- ALWAYS use the EXACT engineer IDs provided above (e.g., ${engineers.map(e => e.ingenieur_id).join(', ')})
+- DO NOT make up or generate new IDs
+- Each ranking must reference one of these specific engineer IDs: ${engineers.map(e => `ID ${e.ingenieur_id} = ${e.prenom} ${e.nom}`).join(', ')}
+- ALWAYS prioritize most available engineers with equal skills
+- Clearly mention priority conflicts if a qualified engineer is on a critical project
+- Suggest alternatives (training, team support) for less available ones
+- Return ONLY the JSON without markdown formatting or additional explanations.
 `;
   }
 
   /**
    * Parse la réponse de l'AI et crée les objets ClassementAI
    */
-  private parseRankingResponse(response: string, ingenieurs: any[]): any[] {
+  private parseRankingResponse(response: string, engineers: any[]): any[] {
     try {
+      console.log('=== AI RANKING RESPONSE DEBUG ===');
+      console.log('Raw AI response:', response.substring(0, 500) + '...');
+      
       // Nettoie la réponse pour extraire le JSON
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
@@ -180,6 +216,14 @@ IMPORTANT:
       }
 
       const parsedResponse = JSON.parse(jsonMatch[0]);
+      
+      console.log('Parsed AI response:', JSON.stringify(parsedResponse, null, 2));
+      console.log('AI returned rankings count:', parsedResponse.rankings?.length || 0);
+      
+      if (parsedResponse.rankings && Array.isArray(parsedResponse.rankings)) {
+        console.log('AI returned engineer IDs:', parsedResponse.rankings.map(r => r.ingenieur_id));
+        console.log('Expected engineer IDs:', engineers.map(e => e.ingenieur_id));
+      }
       
       if (!parsedResponse.rankings || !Array.isArray(parsedResponse.rankings)) {
         throw new Error("Format de réponse AI invalide");
@@ -219,26 +263,680 @@ IMPORTANT:
    * Génère des recommandations d'amélioration pour un ingénieur
    */
   async generateImprovementRecommendations(
-    ingenieur: Ingenieur,
-    competencesManquantes: any[]
+    engineer: Ingenieur,
+    missingSkills: any[]
   ): Promise<string> {
     const prompt = `
-Génère des recommandations spécifiques d'amélioration pour cet ingénieur:
+Generate specific recommendations to help this engineer improve their skills for better task compatibility:
 
-INGÉNIEUR: ${ingenieur.prenom} ${ingenieur.nom}
-COMPÉTENCES ACTUELLES:
-${ingenieur.competences?.map(c => `- ${c.competence?.nom_competence}: ${c.niveau}/5`).join('\n')}
+ENGINEER: ${engineer.prenom} ${engineer.nom}
+EMAIL: ${engineer.email}
 
-COMPÉTENCES À DÉVELOPPER:
-${competencesManquantes.map(c => `- ${c.nom_competence}: niveau requis ${c.niveau_requis}/5`).join('\n')}
+MISSING SKILLS IDENTIFIED:
+${missingSkills.map(skill => 
+  `- ${skill.nom_competence}: Current level unknown, Required level ${skill.niveau_requis}/5`
+).join('\n')}
 
-Fournis des recommandations concrètes incluant:
-1. Formations recommandées
-2. Projets ou expériences à acquérir
-3. Certifications utiles
-4. Timeline suggérée
+Provide:
+1. 🎯 PRIORITY TRAINING (which skills to focus on first)
+2. 📚 SPECIFIC RESOURCES (courses, certifications, documentation)
+3. 🏆 PRACTICE PROJECTS (hands-on exercises)
+4. ⏱️ ESTIMATED TIMELINE (realistic timeframe for each skill)
+5. 💡 LEARNING PATH (step-by-step progression)
 
-Réponse en français, format texte simple.
+Response in English, practical and actionable format.
+`;
+
+    const { text } = await generateText({
+      model: this.model,
+      prompt,
+    });
+
+    return text;
+  }
+
+  /**
+   * NEW VERSION: Uses Structured Outputs to force parallelization
+   */
+  async decomposeProjectIntoParallelWorkstreams(projectDescription: string): Promise<any> {
+    try {
+      console.log("Decomposing project into parallel workstreams...");
+
+      const prompt = `
+You are an expert in agile project management and software engineering.
+Your role is to decompose a complex project into PARALLEL WORKSTREAMS that can start SIMULTANEOUSLY.
+
+PROJECT DESCRIPTION:
+${projectDescription}
+
+CRITICAL INSTRUCTIONS:
+1. Create 3-5 WORKSTREAMS that can all start on DAY 1
+2. Each workstream represents a distinct team working in parallel
+3. NO blocking dependencies between workstreams
+4. Use interface contracts and mocked APIs for independence
+
+PARALLELIZATION STRATEGIES:
+- Separate by TECHNICAL LAYERS (Frontend/Backend/Mobile/DevOps)
+- Separate by FUNCTIONAL MODULES (User/Product/Payment/Admin)
+- Create minimalist API contracts for independence
+
+MANDATORY response format (JSON only):
+{
+  "workstreams_paralleles": [
+    {
+      "nom_workstream": "Frontend Development Team",
+      "peut_demarrer_jour_1": true,
+      "equipe_recommandee": 2,
+      "description_workstream": "Complete user interface with React",
+      "taches_simultanees": [
+        {
+          "nom": "React Core Interface",
+          "description": "Develop main UI components with React, TypeScript, state management Redux, design system, responsive design...",
+          "type": "frontend",
+          "complexite": 4,
+          "peut_commencer_immediatement": true,
+          "dependances": [],
+          "competences_cles": [
+            "React",
+            "TypeScript",
+            "CSS/SCSS",
+            "Redux"
+          ],
+          "estimation_jours": 12,
+          "assignable_en_parallele": true
+        },
+        {
+          "nom": "State Management & API Integration",
+          "description": "Implement Redux/Zustand, REST API integration, error handling, loading states...",
+          "type": "frontend",
+          "complexite": 3,
+          "peut_commencer_immediatement": true,
+          "dependances": [],
+          "competences_cles": [
+            "Redux",
+            "API Integration",
+            "JavaScript"
+          ],
+          "estimation_jours": 8,
+          "assignable_en_parallele": true
+        }
+      ]
+    },
+    {
+      "nom_workstream": "Backend API Team",
+      "peut_demarrer_jour_1": true,
+      "equipe_recommandee": 2,
+      "description_workstream": "Complete REST API and database",
+      "taches_simultanees": [
+        {
+          "nom": "API Core & Authentication",
+          "description": "Develop REST API with Node.js/Express, JWT authentication, security middleware, data validation...",
+          "type": "backend",
+          "complexite": 4,
+          "peut_commencer_immediatement": true,
+          "dependances": [],
+          "competences_cles": [
+            "Node.js",
+            "Express",
+            "JWT",
+            "REST API"
+          ],
+          "estimation_jours": 15,
+          "assignable_en_parallele": true
+        }
+      ]
+    }
+  ],
+  "synchronisation_points": [
+    {
+      "jour": 7,
+      "description": "API contract synchronization between Frontend and Backend"
+    },
+    {
+      "jour": 14,
+      "description": "Component integration and integration testing"
+    }
+  ]
+}
+
+ABSOLUTE RULES:
+- ALL workstreams MUST have "peut_demarrer_jour_1": true
+- NO task should depend on the completion of another
+- Each task must be detailed enough for engineer ranking
+- Use specific technologies and skills
+- Return ONLY the JSON without markdown formatting or additional explanations
+`;
+
+      const { text } = await generateText({
+        model: this.model,
+        prompt,
+      });
+
+      // Parse the response
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("No valid JSON found in AI response");
+      }
+
+      const parsedResponse = JSON.parse(jsonMatch[0]);
+      
+      if (!parsedResponse.workstreams_paralleles || !Array.isArray(parsedResponse.workstreams_paralleles)) {
+        throw new Error("Invalid AI response format");
+      }
+
+      console.log(`Project decomposed into ${parsedResponse.workstreams_paralleles.length} parallel workstreams`);
+      return parsedResponse;
+
+    } catch (error) {
+      console.error("Error during workstream decomposition:", error);
+      throw new Error("Parallel workstream decomposition failed");
+    }
+  }
+
+  /**
+   * Ranks engineers for a specific job specification
+   */
+  async rankEngineersForJobSpecification(
+    jobSpecification: string,
+    engineers: any[]
+  ): Promise<any> {
+    try {
+      console.log("Job specification ranking - Start");
+
+      // Analyze the job specification and extract requirements
+      const jobAnalysis = await this.analyzeJobSpecification(jobSpecification);
+
+      // Rank engineers for the job
+      console.log(`Ranking engineers for job: ${jobAnalysis.position_title}`);
+      
+      const rankings = await this.rankEngineersForTask(
+        jobSpecification,
+        engineers,
+        [] // No predefined skills, AI will extract them from job specification
+      );
+
+      console.log(`Job specification ranking finished for ${rankings.length} engineers`);
+
+      return {
+        job_specification: jobSpecification,
+        job_analysis: jobAnalysis,
+        nombre_ingenieurs_evalues: engineers.length,
+        classements: rankings.slice(0, 10), // Top 10 for job specification
+        // Summary will be generated later with enriched data
+        resume_job_matching: null
+      };
+
+    } catch (error) {
+      console.error("Error during job specification ranking:", error);
+      throw new Error("Job specification ranking failed");
+    }
+  }
+
+  /**
+   * Analyzes a job specification to extract key requirements
+   */
+  private async analyzeJobSpecification(jobSpecification: string): Promise<any> {
+    const prompt = `
+You are an expert in technical recruitment and job analysis.
+Analyze the following job specification and extract key requirements in a structured format.
+
+JOB SPECIFICATION:
+${jobSpecification}
+
+Extract and analyze:
+1. Position title and seniority level
+2. Required technical skills with importance levels
+3. Location requirements and work model
+4. Duration and availability requirements
+5. Industry/domain expertise needed
+6. Must-have vs nice-to-have requirements
+
+MANDATORY response format (JSON only):
+{
+  "position_title": "Senior Java Developer",
+  "seniority_level": "senior",
+  "engagement_duration": "4-6 months",
+  "start_urgency": "as soon as possible",
+  "location_requirements": {
+    "city": "Warsaw",
+    "country": "Poland",
+    "work_model": "hybrid",
+    "office_days": 3,
+    "remote_days": 2,
+    "relocation_required": false
+  },
+  "technical_requirements": {
+    "must_have": [
+      {
+        "skill": "Java",
+        "importance": 5,
+        "experience_level": "strong hands-on"
+      },
+      {
+        "skill": "Spring Boot",
+        "importance": 5,
+        "experience_level": "strong hands-on"
+      },
+      {
+        "skill": "Microservices Architecture",
+        "importance": 5,
+        "experience_level": "experienced"
+      }
+    ],
+    "preferred": [
+      {
+        "skill": "AWS EC2",
+        "importance": 4,
+        "experience_level": "practical experience"
+      }
+    ]
+  },
+  "domain_expertise": "Real-Time Fraud Detection",
+  "key_technologies": ["Java", "Spring Boot", "Microservices", "AWS", "Jenkins"],
+  "availability_requirements": {
+    "start_date": "immediate",
+    "commitment_level": "full-time",
+    "duration_months": 5
+  }
+}
+
+Return ONLY the JSON without markdown formatting or additional explanations.
+`;
+
+    const { text } = await generateText({
+      model: this.model,
+      prompt,
+    });
+
+    // Parse the response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("No valid JSON found in job analysis response");
+    }
+
+    return JSON.parse(jsonMatch[0]);
+  }
+
+  /**
+   * Generates a job matching summary with focus on fit analysis
+   */
+  public async generateJobMatchingSummary(jobAnalysis: any, rankings: any[]): Promise<string> {
+    const prompt = `
+Analyze these engineer rankings for a specific job position and generate an executive hiring summary:
+
+JOB POSITION: ${jobAnalysis.position_title}
+LOCATION: ${jobAnalysis.location_requirements?.city}, ${jobAnalysis.location_requirements?.country}
+WORK MODEL: ${jobAnalysis.location_requirements?.work_model}
+DURATION: ${jobAnalysis.engagement_duration}
+START: ${jobAnalysis.start_urgency}
+
+REQUIRED SKILLS:
+${jobAnalysis.technical_requirements?.must_have?.map((req: any) => 
+  `- ${req.skill} (${req.experience_level}, importance: ${req.importance}/5)`
+).join('\n') || 'Not specified'}
+
+TOP 5 CANDIDATE ANALYSIS:
+${rankings.slice(0, 5).map((ranking: any, index: number) => 
+  `${index + 1}. ${ranking.ingenieur?.prenom || 'Engineer'} ${ranking.ingenieur?.nom || 'Unknown'} (${ranking.score_compatibilite.toFixed(1)}%)
+   Availability: ${ranking.ingenieur?.disponibilite?.disponibilite_effective || 'N/A'}%
+   Status: ${ranking.ingenieur?.disponibilite?.statut_disponibilite || 'Unknown'}
+   Location: ${ranking.ingenieur?.adresse_residence || 'Not specified'}
+   AI Justification: ${ranking.justification_ai}`
+).join('\n\n')}
+
+Generate an executive hiring summary including:
+1. 🎯 BEST CANDIDATE RECOMMENDATION
+   - Start with "Top candidature: [Full Name of Engineer]" format
+   - Provide specific reasoning for the recommendation
+   - Immediate availability and location fit
+   - Skills match percentage and gaps
+
+2. 👥 CANDIDATE POOL ANALYSIS
+   - How many qualified candidates available
+   - Availability timeline for top candidates
+   - Location/relocation considerations
+
+3. ⚠️ HIRING CHALLENGES & RISKS
+   - Skills gaps in candidate pool
+   - Availability conflicts with other projects
+   - Location/work model constraints
+
+4. 📅 RECOMMENDED HIRING STRATEGY
+   - Priority order for interviews
+   - Skills assessment focus areas
+   - Timeline to secure candidate
+
+5. 💡 OPTIMIZATION RECOMMENDATIONS
+   - Adjustments to job requirements if needed
+   - Alternative candidates to consider
+   - Backup hiring strategies
+
+Response in English, structured format with emojis and clear sections.
+`;
+
+    const { text } = await generateText({
+      model: this.model,
+      prompt,
+    });
+
+    return text;
+  }
+
+  /**
+   * Ranks engineers for a complete project (decomposes into tasks then ranks for each task)
+   */
+  async rankEngineersForProject(
+    projectDescription: string,
+    engineers: any[]
+  ): Promise<any> {
+    try {
+      console.log("Complete project ranking - Start");
+
+      // 1. Decompose the project into parallel workstreams
+      const workstreamsData = await this.decomposeProjectIntoParallelWorkstreams(projectDescription);
+
+      // 2. Rank engineers for each task in the workstreams
+      const rankingsPerTask = [];
+
+      // Extract all tasks from all workstreams
+      for (const workstream of workstreamsData.workstreams_paralleles || []) {
+        for (const task of workstream.taches_simultanees || []) {
+          console.log(`Ranking for task: ${task.nom} (Workstream: ${workstream.nom_workstream})`);
+          
+          const rankings = await this.rankEngineersForTask(
+            task.description,
+            engineers,
+            [] // No predefined skills, AI will extract them from description
+          );
+
+          rankingsPerTask.push({
+            tache: {
+              ...task,
+              workstream: workstream.nom_workstream,
+              workstream_info: {
+                peut_demarrer_jour_1: workstream.peut_demarrer_jour_1,
+                equipe_recommandee: workstream.equipe_recommandee,
+                description_workstream: workstream.description_workstream
+              }
+            },
+            classements: rankings.slice(0, 5) // Top 5 for each task
+          });
+        }
+      }
+
+      console.log(`Complete ranking finished for ${rankingsPerTask.length} tasks`);
+
+      return {
+        projet_description: projectDescription,
+        taches_identifiees: rankingsPerTask.length,
+        workstreams_paralleles: workstreamsData.workstreams_paralleles,
+        synchronisation_points: workstreamsData.synchronisation_points,
+        classements_par_tache: rankingsPerTask,
+        resume_global: await this.generateProjectSummary(rankingsPerTask)
+      };
+
+    } catch (error) {
+      console.error("Error during complete ranking:", error);
+      throw new Error("Complete project ranking failed");
+    }
+  }
+
+  /**
+   * Generates a global project ranking summary with focus on parallelization
+   */
+  private async generateProjectSummary(rankingsPerTask: any[]): Promise<string> {
+    const prompt = `
+Analyze these engineer rankings per SIMULTANEOUS task and generate an executive summary for a parallel development project:
+
+${rankingsPerTask.map((item, index) => `
+SIMULTANEOUS TASK ${index + 1}: ${item.tache.nom} (${item.tache.type || 'Type not specified'})
+Description: ${item.tache.description}
+Complexity: ${item.tache.complexite}/5
+Estimate: ${item.tache.estimation_jours || 'Not estimated'} days
+Can start immediately: ${item.tache.peut_commencer_immediatement ? 'YES' : 'NO'}
+Dependencies: ${item.tache.dependances?.length > 0 ? item.tache.dependances.join(', ') : 'None'}
+
+Top 3 recommended engineers:
+${item.classements.slice(0, 3).map((c: any, i: number) => 
+  `${i + 1}. ${c.ingenieur?.prenom || 'Engineer'} ${c.ingenieur?.nom || 'Unknown'} (${c.score_compatibilite.toFixed(1)}%) - Availability: ${c.ingenieur?.disponibilite?.disponibilite_effective || 'N/A'}%`
+).join('\n')}
+`).join('\n')}
+
+Generate an executive summary including:
+1. 🚀 SIMULTANEOUS START STRATEGY
+   - Which tasks can start immediately in parallel
+   - Priority order for engineer assignment
+
+2. 👥 OPTIMAL TEAM DISTRIBUTION
+   - Recommended assignment (who on what)
+   - Most versatile engineers for flexibility
+   - Avoid resource conflicts
+
+3. ⚠️  RISKS AND BOTTLENECKS
+   - Critical dependencies to monitor
+   - Overbooked or unavailable engineers
+   - Missing skills in the team
+
+4. 📅 PARALLEL TIMELINE
+   - Global project estimate with simultaneous development
+   - Necessary synchronization points
+   - Critical milestones
+
+5. 💡 OPTIMIZATION RECOMMENDATIONS
+   - Suggestions to maximize parallelization
+   - Urgent training if needed
+   - Staffing alternatives
+
+Response in English, structured format with emojis and clear sections.
+`;
+
+    const { text } = await generateText({
+      model: this.model,
+      prompt,
+    });
+
+    return text;
+  }
+
+  /**
+   * STRATEGY: Multiple specialized prompts to force parallelization
+   */
+  async rankEngineersForProjectEnhanced(
+    projectDescription: string,
+    engineers: any[]
+  ): Promise<any> {
+    try {
+      // Step 1: Analyze parallelizable domains
+      const domains = await this.identifyParallelDomains(projectDescription);
+      
+      // Step 2: Create workstreams for each domain
+      const workstreams = await this.createWorkstreamsFromDomains(domains, projectDescription);
+      
+      // Step 3: Validate parallelization
+      const validatedWorkstreams = await this.validateParallelization(workstreams);
+      
+      // Step 4: Rank engineers for each workstream
+      const rankings = await this.rankEngineersForWorkstreams(validatedWorkstreams, engineers);
+      
+      return {
+        projet_description: projectDescription,
+        workstreams_paralleles: validatedWorkstreams,
+        classements_par_workstream: rankings,
+        resume_parallelisation: await this.generateParallelizationSummary(rankings)
+      };
+
+    } catch (error) {
+      console.error("Error during enhanced ranking:", error);
+      throw new Error("Enhanced parallelization ranking failed");
+    }
+  }
+
+  /**
+   * Specialized prompt: Identify parallelizable domains
+   */
+  private async identifyParallelDomains(projectDescription: string): Promise<string[]> {
+    const prompt = `
+ANALYSIS: What are the INDEPENDENT TECHNICAL DOMAINS in this project?
+
+PROJECT: ${projectDescription}
+
+RETURN only a JSON list of domains that can be developed IN PARALLEL:
+["Frontend Web", "Backend API", "Mobile App", "DevOps Infrastructure", "Database Design"]
+
+RULE: Each domain must be INDEPENDENT from others.
+`;
+
+    const { text } = await generateText({
+      model: this.model,
+      prompt,
+    });
+
+    const jsonMatch = text.match(/\[[\s\S]*?\]/);
+    return jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+  }
+
+  /**
+   * Specialized prompt: Create workstreams per domain
+   */
+  private async createWorkstreamsFromDomains(domains: string[], projectDescription: string): Promise<any[]> {
+    const workstreams = [];
+    
+    for (const domain of domains) {
+      const prompt = `
+CREATE a workstream for the domain: ${domain}
+
+PROJECT CONTEXT: ${projectDescription}
+
+CONSTRAINT: This workstream must be able to start IMMEDIATELY without depending on other workstreams.
+
+RETURN this JSON:
+{
+  "nom_workstream": "${domain} Team",
+  "peut_demarrer_jour_1": true,
+  "taches_simultanees": [...]
+}
+`;
+
+      const { text } = await generateText({
+        model: this.model,
+        prompt,
+      });
+
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        workstreams.push(JSON.parse(jsonMatch[0]));
+      }
+    }
+    
+    return workstreams;
+  }
+
+  /**
+   * Specialized prompt: Validate parallelization
+   */
+  private async validateParallelization(workstreams: any[]): Promise<any[]> {
+    const prompt = `
+VALIDATE: Verify that each workstream is independent and can start on DAY 1 without depending on other workstreams.
+
+WORKSTREAMS:
+${workstreams.map((ws, index) => `
+Workstream ${index + 1}: ${ws.nom_workstream}
+Can start DAY 1: ${ws.peut_demarrer_jour_1 ? 'YES' : 'NO'}
+Recommended team: ${ws.equipe_recommandee}
+Description: ${ws.description_workstream}
+Simultaneous tasks:
+${ws.taches_simultanees.map((tache: any) => `- ${tache.nom} (${tache.type})`).join('\n')}
+`).join('\n')}
+
+PARALLELIZATION RULES:
+1. ALL workstreams MUST have "peut_demarrer_jour_1": true
+2. NO blocking dependencies between workstreams
+3. Each workstream = distinct team working in parallel
+4. 3-5 workstreams maximum to avoid over-fragmentation
+
+RESULT:
+${workstreams.map((ws, index) => `
+Workstream ${index + 1}: ${ws.nom_workstream} - ${ws.peut_demarrer_jour_1 ? 'VALIDATED' : 'FAILED'}`).join('\n')}
+`;
+
+    const { text } = await generateText({
+      model: this.model,
+      prompt,
+    });
+
+    const jsonMatch = text.match(/\[[\s\S]*?\]/);
+    return jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+  }
+
+  /**
+   * Specialized prompt: Rank engineers for each workstream
+   */
+  private async rankEngineersForWorkstreams(workstreams: any[], engineers: any[]): Promise<any[]> {
+    const rankings = [];
+    
+    for (const workstream of workstreams) {
+      console.log(`Ranking for workstream: ${workstream.nom_workstream}`);
+      
+      const workstreamRankings = await this.rankEngineersForTask(
+        workstream.description_workstream,
+        engineers,
+        workstream.taches_simultanees.map((tache: any) => ({
+          nom_competence: tache.nom,
+          niveau_requis: tache.complexite
+        }))
+      );
+
+      rankings.push({
+        workstream: workstream,
+        classements: workstreamRankings.slice(0, 5) // Top 5 for each workstream
+      });
+    }
+    
+    return rankings;
+  }
+
+  /**
+   * Specialized prompt: Generate parallelization summary
+   */
+  private async generateParallelizationSummary(rankings: any[]): Promise<string> {
+    const prompt = `
+ANALYSIS: Generate a project parallelization summary based on workstream rankings.
+
+RANKINGS:
+${rankings.map((item, index) => `
+Workstream ${index + 1}: ${item.workstream.nom_workstream}
+Rankings:
+${item.classements.map((c: any, i: number) => 
+  `${i + 1}. ${c.ingenieur?.prenom || 'Engineer'} ${c.ingenieur?.nom || 'Unknown'} (${c.score_compatibilite.toFixed(1)}%)`
+).join('\n')}`).join('\n')}
+
+RESULT:
+Generate an executive summary including:
+1. 🚀 SIMULTANEOUS START STRATEGY
+   - Which workstreams can start immediately in parallel
+   - Priority order for engineer assignment
+
+2. 👥 OPTIMAL TEAM DISTRIBUTION
+   - Recommended assignment (who on what)
+   - Most versatile engineers for flexibility
+   - Avoid resource conflicts
+
+3. ⚠️  RISKS AND BOTTLENECKS
+   - Critical dependencies to monitor
+   - Overbooked or unavailable engineers
+   - Missing skills in the team
+
+4. 📅 PARALLEL TIMELINE
+   - Global project estimate with simultaneous development
+   - Necessary synchronization points
+   - Critical milestones
+
+5. 💡 OPTIMIZATION RECOMMENDATIONS
+   - Suggestions to maximize parallelization
+   - Urgent training if needed
+   - Staffing alternatives
+
+Response in English, structured format with emojis and clear sections.
 `;
 
     const { text } = await generateText({

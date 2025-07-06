@@ -13,188 +13,281 @@ import type { ClassementRequest, ClassementResponse } from '@/lib/types/engineer
 
 export async function POST(req: NextRequest) {
   try {
-    const body: ClassementRequest = await req.json();
+    const body = await req.json();
     
-    // Validation des données d'entrée
-    if (!body.tache_id && !body.tache_description) {
-      return NextResponse.json(
-        { error: 'Soit tache_id soit tache_description est requis' },
-        { status: 400 }
-      );
-    }
+    console.log("Starting analysis for:", body);
 
-    console.log("Début du classement pour:", body);
-
-    // Vérifier la connexion à la base Engineer
+    // Verify connection to Engineer database
     const connectionOk = await testConnection();
     if (!connectionOk) {
       return NextResponse.json(
         { 
-          error: 'Impossible de se connecter à la base de données Engineer. Vérifiez vos variables d\'environnement NEXT_PUBLIC_ENGINEER_SUPABASE_URL et NEXT_PUBLIC_ENGINEER_SUPABASE_ANON_KEY' 
+          error: 'Unable to connect to Engineer database. Check your NEXT_PUBLIC_ENGINEER_SUPABASE_URL and NEXT_PUBLIC_ENGINEER_SUPABASE_ANON_KEY environment variables' 
         },
         { status: 503 }
       );
     }
 
-    // Vérifier que les tables existent
+    // Verify that tables exist
     const tablesStatus = await checkTablesExist();
     if (!tablesStatus.ingenieurs) {
       return NextResponse.json(
         { 
-          error: 'La table "ingenieurs" n\'existe pas dans votre base Supabase Engineer. Veuillez exécuter le script de création des tables.' 
+          error: 'The "ingenieurs" table does not exist in your Engineer Supabase database. Please run the table creation script.' 
         },
         { status: 503 }
       );
     }
 
-    // Récupérer les données de la tâche si tache_id est fourni
-    let tache = null;
-    if (body.tache_id) {
-      try {
-        tache = await getTacheById(body.tache_id);
-      } catch (error) {
-        console.error('Erreur récupération tâche:', error);
-        return NextResponse.json(
-          { error: `Tâche non trouvée: ${error instanceof Error ? error.message : 'Erreur inconnue'}` },
-          { status: 404 }
-        );
-      }
-    }
-
-    // Récupérer tous les ingénieurs disponibles avec leurs compétences ET disponibilité
-    let ingenieursData;
+    // Retrieve all available engineers with their skills AND availability
+    let engineersData;
     try {
-      ingenieursData = await getIngenieurWithCompetencesEtDisponibilite();
+      engineersData = await getIngenieurWithCompetencesEtDisponibilite();
     } catch (error) {
-      console.error('Erreur récupération ingénieurs:', error);
+      console.error('Engineer retrieval error:', error);
       return NextResponse.json(
-        { error: `Erreur lors de la récupération des ingénieurs: ${error instanceof Error ? error.message : 'Erreur inconnue'}` },
+        { error: `Error retrieving engineers: ${error instanceof Error ? error.message : 'Unknown error'}` },
         { status: 500 }
       );
     }
 
-    console.log(`Évaluation de ${ingenieursData.length} ingénieurs avec analyse de disponibilité`);
+    console.log(`Evaluating ${engineersData.length} engineers with availability analysis`);
 
-    // Initialiser le service AI
+    // Initialize AI service
     const rankingAI = new EngineerRankingAI();
     
-    // Effectuer le classement
-    const startTime = Date.now();
-    
-    // Construire la description complète avec contexte projet
-    let descriptionComplete = '';
-    if (body.projet_nom) {
-      descriptionComplete += `PROJET: ${body.projet_nom}\n`;
-    }
-    if (body.projet_description) {
-      descriptionComplete += `CONTEXTE: ${body.projet_description}\n`;
-    }
-    descriptionComplete += `TÂCHE: ${tache?.description_tache || body.tache_description || ''}`;
-    
-    const competencesRequises = tache?.competences_appliquees_tache || body.competences_requises || [];
-    
-    const classements = await rankingAI.rankEngineersForTask(
-      descriptionComplete,
-      ingenieursData,
-      competencesRequises
-    );
+    // Job specification mode (new)
+    if (body.mode === 'job_specification') {
+      if (!body.job_specification) {
+        return NextResponse.json(
+          { error: 'Job specification is required' },
+          { status: 400 }
+        );
+      }
 
-    const endTime = Date.now();
-    const tempsTraitement = (endTime - startTime) / 1000;
+      const startTime = Date.now();
+      
+      // Perform job specification analysis
+      const results = await rankingAI.rankEngineersForJobSpecification(
+        body.job_specification,
+        engineersData
+      );
 
-    // Trier par score décroissant et assigner les rangs
-    const classementsTries = classements
-      .sort((a, b) => b.score_compatibilite - a.score_compatibilite)
-      .map((classement, index) => {
-        // Convertir l'ID de l'IA en nombre pour comparer avec la base
-        const ingenieurIdNumber = parseInt(classement.ingenieur_id);
-        const ingenieurData = ingenieursData.find(ing => ing.ingenieur_id === ingenieurIdNumber);
-        
-        console.log(`ID IA: '${classement.ingenieur_id}' -> Converti: ${ingenieurIdNumber} -> Ingénieur: ${ingenieurData ? `${ingenieurData.prenom} ${ingenieurData.nom}` : 'NON TROUVÉ'}`);
+      // Enrich results with complete engineer data
+      const enrichedClassements = results.classements.map((ranking: any) => {
+        // Convert AI ID to number to compare with database
+        const engineerIdNumber = parseInt(ranking.ingenieur_id);
+        const engineerData = engineersData.find((eng: any) => eng.ingenieur_id === engineerIdNumber);
         
         return {
-          ...classement,
-          rang: index + 1,
-          tache_id: body.tache_id || null,
-          ingenieur_id: ingenieurData ? ingenieurData.ingenieur_id : classement.ingenieur_id,
-          ingenieur: ingenieurData ? {
-            ingenieur_id: ingenieurData.ingenieur_id,
-            nom: ingenieurData.nom,
-            prenom: ingenieurData.prenom,
-            email: ingenieurData.email,
-            equipe_id: ingenieurData.equipe_id
-          } : {
-            ingenieur_id: classement.ingenieur_id,
-            nom: 'Ingénieur',
-            prenom: 'Inconnu', 
-            email: 'email@inconnu.com',
+          ...ranking,
+          ingenieur_id: engineerData ? engineerData.ingenieur_id : ranking.ingenieur_id,
+          ingenieur: engineerData || {
+            ingenieur_id: ranking.ingenieur_id,
+            nom: 'Unknown',
+            prenom: 'Engineer', 
+            email: 'email@unknown.com',
             equipe_id: null
           }
         };
       });
 
-    // Debug pour vérifier
-    console.log('IDs des ingénieurs en base:', ingenieursData.map(ing => ing.ingenieur_id));
-    console.log('IDs retournés par l\'IA:', classements.map(c => c.ingenieur_id));
-    console.log('Correspondances trouvées:', classementsTries.map(c => ({
-      id: c.ingenieur_id,
-      nom: c.ingenieur ? `${c.ingenieur.prenom} ${c.ingenieur.nom}` : 'NON TROUVÉ',
-      score: c.score_compatibilite
-    })));
+      // Generate summary with enriched engineer data
+      const jobMatchingSummary = await rankingAI.generateJobMatchingSummary(
+        results.job_analysis, 
+        enrichedClassements
+      );
 
-    // Limiter les résultats si demandé
-    const limite = body.limite_resultats || classementsTries.length;
-    const classementsFinaux = classementsTries.slice(0, limite);
+      const enrichedResults = {
+        ...results,
+        classements: enrichedClassements,
+        resume_job_matching: jobMatchingSummary
+      };
 
-    // Sauvegarder les résultats en base si une tâche spécifique
+      const endTime = Date.now();
+      const processingTime = (endTime - startTime) / 1000;
+      
+      console.log(`Job specification analysis finished in ${processingTime}s`);
+
+      return NextResponse.json(enrichedResults);
+    }
+
+    // Project decomposition mode (new)
+    if (body.mode === 'project_decomposition') {
+      if (!body.projet_description) {
+        return NextResponse.json(
+          { error: 'Project description is required' },
+          { status: 400 }
+        );
+      }
+
+      const startTime = Date.now();
+      
+      // Perform complete project analysis
+      const results = await rankingAI.rankEngineersForProject(
+        body.projet_description,
+        engineersData
+      );
+
+      // Enrich results with complete engineer data
+      const enrichedResults = {
+        ...results,
+        classements_par_tache: results.classements_par_tache.map((taskData: any) => ({
+          ...taskData,
+          classements: taskData.classements.map((ranking: any) => {
+            // Convert AI ID to number to compare with database
+            const engineerIdNumber = parseInt(ranking.ingenieur_id);
+            const engineerData = engineersData.find((eng: any) => eng.ingenieur_id === engineerIdNumber);
+            
+            return {
+              ...ranking,
+              ingenieur_id: engineerData ? engineerData.ingenieur_id : ranking.ingenieur_id,
+              ingenieur: engineerData || {
+                ingenieur_id: ranking.ingenieur_id,
+                nom: 'Unknown',
+                prenom: 'Engineer', 
+                email: 'email@unknown.com',
+                equipe_id: null
+              }
+            };
+          })
+        }))
+      };
+
+      const endTime = Date.now();
+      const processingTime = (endTime - startTime) / 1000;
+      
+      console.log(`Complete project analysis finished in ${processingTime}s`);
+
+      return NextResponse.json(enrichedResults);
+    }
+
+    // Classic mode (specific task) - keep existing code
+    if (!body.tache_id && !body.tache_description) {
+      return NextResponse.json(
+        { error: 'Either tache_id or tache_description is required for classic mode' },
+        { status: 400 }
+      );
+    }
+
+    // Retrieve task data if tache_id is provided
+    let task = null;
     if (body.tache_id) {
-      for (const classement of classementsFinaux) {
-        try {
-          await saveClassementAI({
-            tache_id: classement.tache_id,
-            ingenieur_id: classement.ingenieur_id,
-            score_compatibilite: classement.score_compatibilite,
-            rang: classement.rang,
-            justification_ai: classement.justification_ai,
-            competences_manquantes: classement.competences_manquantes,
-            competences_adequates: classement.competences_adequates,
-            recommandations: classement.recommandations
-          });
-        } catch (saveError) {
-          console.warn('Erreur sauvegarde classement:', saveError);
-        }
+      try {
+        task = await getTacheById(body.tache_id);
+      } catch (error) {
+        console.error('Task retrieval error:', error);
+        return NextResponse.json(
+          { error: `Task not found: ${error instanceof Error ? error.message : 'Unknown error'}` },
+          { status: 404 }
+        );
       }
     }
 
-    // Préparer la réponse
-    const response: ClassementResponse = {
-      classements: classementsFinaux,
-      tache_analysee: tache || {
-        tache_id: 'temp',
-        nom_tache: body.projet_nom || 'Tâche temporaire',
-        description_tache: descriptionComplete,
-        statut_tache: 'en_attente',
-        priorite: 3,
-        created_at: new Date().toISOString()
-      },
-      nombre_ingenieurs_evalues: ingenieursData.length,
-      temps_traitement: tempsTraitement
-    };
+    // Perform ranking
+    const startTime = Date.now();
+    
+    // Build complete description with project context
+    let completeDescription = '';
+    if (body.projet_nom) {
+      completeDescription += `PROJECT: ${body.projet_nom}\n`;
+    }
+    if (body.projet_description) {
+      completeDescription += `CONTEXT: ${body.projet_description}\n`;
+    }
+    completeDescription += `TASK: ${task?.description_tache || body.tache_description || ''}`;
+    
+    const requiredSkills = task?.competences_appliquees_tache || body.competences_requises || [];
+    
+    const rankings = await rankingAI.rankEngineersForTask(
+      completeDescription,
+      engineersData,
+      requiredSkills
+    );
 
-    console.log(`Classement terminé en ${tempsTraitement}s pour ${ingenieursData.length} ingénieurs réels`);
+    const endTime = Date.now();
+    const processingTime = (endTime - startTime) / 1000;
 
-    return NextResponse.json(response);
+    // Sort by descending score and assign ranks
+    const sortedRankings = rankings
+      .sort((a, b) => b.score_compatibilite - a.score_compatibilite)
+      .map((ranking, index) => {
+        // Convert AI ID to number to compare with database
+        const engineerIdNumber = parseInt(ranking.ingenieur_id);
+        const engineerData = engineersData.find(eng => eng.ingenieur_id === engineerIdNumber);
+        
+        console.log(`=== ENGINEER ID MATCHING DEBUG ===`);
+        console.log(`AI returned ID: '${ranking.ingenieur_id}' (type: ${typeof ranking.ingenieur_id})`);
+        console.log(`Converted to number: ${engineerIdNumber} (type: ${typeof engineerIdNumber})`);
+        console.log(`Database engineer IDs: [${engineersData.map(e => `${e.ingenieur_id}(${typeof e.ingenieur_id})`).join(', ')}]`);
+        console.log(`Match found: ${engineerData ? `${engineerData.prenom} ${engineerData.nom}` : 'NOT FOUND'}`);
+        console.log(`=============================`);
+        
+        return {
+          ...ranking,
+          rang: index + 1,
+          tache_id: body.tache_id || null,
+          ingenieur_id: engineerData ? engineerData.ingenieur_id : ranking.ingenieur_id,
+          ingenieur: engineerData ? {
+            ingenieur_id: engineerData.ingenieur_id,
+            nom: engineerData.nom,
+            prenom: engineerData.prenom,
+            email: engineerData.email,
+            equipe_id: engineerData.equipe_id
+          } : {
+            ingenieur_id: ranking.ingenieur_id,
+            nom: 'Engineer',
+            prenom: 'Unknown', 
+            email: 'email@unknown.com',
+            equipe_id: null
+          }
+        };
+      });
+
+    // Debug to verify
+    console.log('Engineer IDs in database:', engineersData.map(eng => eng.ingenieur_id));
+    console.log('IDs returned by AI:', rankings.map(c => c.ingenieur_id));
+    console.log('Matches found:', sortedRankings.map(c => ({
+      id: c.ingenieur_id,
+      nom: c.ingenieur ? `${c.ingenieur.prenom} ${c.ingenieur.nom}` : 'NOT FOUND',
+      score: c.score_compatibilite
+    })));
+
+    // Limit results if requested
+    const limit = body.limite_resultats || sortedRankings.length;
+    const finalRankings = sortedRankings.slice(0, limit);
+
+    // Save results to database if specific task
+    if (body.tache_id) {
+      try {
+        await saveClassementAI(finalRankings);
+        console.log(`Saved ${finalRankings.length} rankings to database`);
+      } catch (error) {
+        console.error('Error saving rankings:', error);
+        // Continue without blocking the response
+      }
+    }
+
+    return NextResponse.json({
+      classements: finalRankings,
+      tache_analysee: task,
+      nombre_ingenieurs_evalues: engineersData.length,
+      temps_traitement: processingTime
+    });
 
   } catch (error) {
-    console.error('Erreur lors du classement:', error);
+    console.error('General error in engineer ranking:', error);
     return NextResponse.json(
-      { error: `Erreur interne du serveur lors du classement: ${error instanceof Error ? error.message : 'Erreur inconnue'}` },
+      { 
+        error: error instanceof Error ? error.message : 'An error occurred during engineer ranking',
+        details: 'Check server logs for more information'
+      },
       { status: 500 }
     );
   }
 }
 
-// Endpoint pour récupérer les classements existants
+// Endpoint to retrieve existing rankings
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);

@@ -97,7 +97,7 @@ export default function Header() {
               ) : (
                 <Link href="/auth/sso">
                   <AnimatedButton className="bg-white text-gray-700 border border-gray-300 hover:bg-gray-50">
-                    {t("login") || "Log In"}
+                    {t("login") || "Login"}
                   </AnimatedButton>
                 </Link>
               )}
@@ -169,7 +169,7 @@ export default function Header() {
                   <>
                     <Link href="/login" onClick={closeAllMenus}>
                       <AnimatedButton className="w-full bg-white text-blue-600 border border-blue-600 hover:bg-blue-50">
-                        {t("login") || "Log In"}
+                        {t("login") || "Login"}
                       </AnimatedButton>
                     </Link>
                     

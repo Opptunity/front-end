@@ -23,6 +23,6 @@ export default {
   "accountCreated": "Account created successfully",
   "alreadyHaveAccount": "Already have an account?",
   "backToHome": "Back to Home",
-  "login": "Log In",
+  "login": "Login",
   "dashboard": "Dashboard"
 } 

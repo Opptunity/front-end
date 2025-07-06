@@ -102,6 +102,11 @@ export async function assessSkills(cvText: string, userId?: string) {
         
         9. Skill gap analysis - identify critical skills missing for their career progression
 
+        10. Contact information extraction - extract the candidate's residence address if mentioned in the CV
+           - Look for patterns like "City, Country" (e.g., "Tunis, Tunisia", "Paris, France")
+           - Look for address labels like "Address:", "Location:", "Based in:", "Residence:"
+           - Extract full address including city, country, state/region if mentioned
+           - Pay special attention to international formats and non-English location names
         
         Format your response as a valid JSON object with the following structure:
         {
@@ -134,6 +139,9 @@ export async function assessSkills(cvText: string, userId?: string) {
             "importantGaps": ["..."],
             "learningResources": ["..."]
           },
+          "contactInfo": {
+            "residenceAddress": "Extract full residence address if mentioned in CV - include city, country, and any other location details. For example: 'Tunis, Tunisia' or 'Paris, France'. Return null if not found."
+          }
         }
         
         IMPORTANT: Return ONLY the JSON object without any markdown formatting, explanation, or code blocks.
