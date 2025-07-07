@@ -116,80 +116,47 @@ export async function POST(request: NextRequest) {
         const sanitizedEmail = email ? email.trim() : ""
         console.log("Storing in Supabase with email:", sanitizedEmail || "No email")
         
-        // Check if record with this ID already exists (update if it does)
-        const { data: existingData, error: existingError } = await supabase
+        // Insert new record directly (remove the check)
+        const { data, error } = await supabase
           .from('cv_data')
-          .select('id, email')
-          .eq('id', uuid)
-          .single()
+          .insert({
+            id: uuid,
+            email: sanitizedEmail,
+            local_id: id,
+            original_text: text,
+            file_name: file.name,
+            file_type: file.type,
+            parsed_data: null,
+            assessment_results: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
         
-        if (existingError && existingError.code !== 'PGRST116') { // Not found is ok
-          console.error("Error checking for existing record:", existingError)
-        }
-        
-        // If record exists, update it
-        if (existingData) {
-          console.log("Record exists, updating with new CV data")
-          const existingEmail = existingData.email as string || ''
-          const { error: updateError } = await supabase
-            .from('cv_data')
-            .update({
-              email: sanitizedEmail || existingEmail, // Keep existing email if new one not provided
-              original_text: text,
-              file_name: file.name,
-              file_type: file.type,
-              updatedAt: new Date().toISOString()
-            })
-            .eq('id', uuid)
-          
-          if (updateError) {
-            console.error("Supabase update error:", updateError)
-          } else {
-            console.log("Successfully updated record in Supabase")
-          }
+        if (error) {
+          console.error("Supabase storage error:", error)
         } else {
-          // Insert new record
-          const { data, error } = await supabase
-            .from('cv_data')
-            .insert({
-              id: uuid,
-              email: sanitizedEmail,
-              local_id: id,  // Store local id directly on insert (now always UUID)
-              original_text: text,
-              file_name: file.name,
-              file_type: file.type,
-              parsed_data: null,
-              assessment_results: null,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            })
-            .select()
+          console.log("Successfully stored data in Supabase:", data)
           
-          if (error) {
-            console.error("Supabase storage error:", error)
-          } else {
-            console.log("Successfully stored data in Supabase:", data)
+          // Create a mapping between the local ID and Supabase UUID
+          // This allows us to reference the Supabase record later
+          try {
+            const idMapKey = `supabase_id_${id}`
+            // Don't use localStorage in server-side code
+            // localStorage.setItem(idMapKey, uuid)
+            console.log(`Created ID mapping: ${id} -> ${uuid}`)
             
-            // Create a mapping between the local ID and Supabase UUID
-            // This allows us to reference the Supabase record later
-            try {
-              const idMapKey = `supabase_id_${id}`
-              // Don't use localStorage in server-side code
-              // localStorage.setItem(idMapKey, uuid)
-              console.log(`Created ID mapping: ${id} -> ${uuid}`)
+            // Store the mapping directly in the cv_data table
+            const { error: mappingError } = await supabase
+              .from('cv_data')
+              .update({ local_id: id })
+              .eq('id', uuid)
               
-              // Store the mapping directly in the cv_data table
-              const { error: mappingError } = await supabase
-                .from('cv_data')
-                .update({ local_id: id })
-                .eq('id', uuid)
-                
-              if (mappingError) {
-                console.warn("Could not store ID mapping in database:", mappingError)
-              }
-            } catch (e) {
-              console.warn("Could not store ID mapping:", e)
+            if (mappingError) {
+              console.warn("Could not store ID mapping in database:", mappingError)
             }
+          } catch (e) {
+            console.warn("Could not store ID mapping:", e)
           }
         }
       } catch (storageError) {
