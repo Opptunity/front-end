@@ -28,7 +28,18 @@ export async function POST(req: NextRequest) {
 
     console.log('Assessment generated successfully');
 
+    // Log environment and configuration details for debugging
+    console.log("=== ASSESSMENTS SUPABASE DEBUG INFO ===")
+    console.log("Environment:", process.env.NODE_ENV)
+    console.log("Supabase URL exists:", !!process.env.NEXT_PUBLIC_SUPABASE_URL)
+    console.log("Supabase Anon Key exists:", !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+    console.log("Supabase URL domain:", process.env.NEXT_PUBLIC_SUPABASE_URL?.split('.')[0] || 'unknown')
+    console.log("User ID:", userId)
+    console.log("CV Text length:", cvText?.length || 0)
+    console.log("Assessment object keys:", assessment ? Object.keys(assessment) : 'null')
+
     // Save to Supabase
+    console.log("Attempting to insert into Assessments table...")
     const { data, error } = await supabase
       .from('Assessments')
       .insert({
@@ -41,15 +52,45 @@ export async function POST(req: NextRequest) {
       .select()
       .single();
 
+    console.log("=== ASSESSMENTS INSERT RESULT ===")
+    console.log("Data returned:", data ? "YES" : "NO")
+    console.log("Error occurred:", error ? "YES" : "NO")
+
     if (error) {
-      console.error('Error saving to Supabase:', error);
+      console.error('=== DETAILED ASSESSMENTS ERROR ===');
+      console.error("Full error object:", JSON.stringify(error, null, 2));
+      console.error("Error message:", error.message);
+      console.error("Error code:", error.code);
+      console.error("Error details:", error.details);
+      console.error("Error hint:", error.hint);
+      
+      // Try to understand what type of error this is
+      if (error.code === '42P01') {
+        console.error("❌ ERROR TYPE: Table 'Assessments' does not exist in this database");
+      } else if (error.code === '23505') {
+        console.error("❌ ERROR TYPE: Duplicate key violation - record already exists");
+      } else if (error.code === '42501') {
+        console.error("❌ ERROR TYPE: Permission denied - insufficient privileges");
+      } else if (error.code === '23502') {
+        console.error("❌ ERROR TYPE: Not null violation - required field missing");
+      } else if (error.code === '23503') {
+        console.error("❌ ERROR TYPE: Foreign key violation");
+      } else if (error.message?.includes('fetch')) {
+        console.error("❌ ERROR TYPE: Network/connection error");
+      } else if (error.message?.includes('column')) {
+        console.error("❌ ERROR TYPE: Column doesn't exist - schema mismatch");
+      } else {
+        console.error("❌ ERROR TYPE: Unknown error");
+      }
+      
       return NextResponse.json(
         { error: 'Failed to save assessment to database' },
         { status: 500 }
       );
     }
 
-    console.log('Assessment saved to database with ID:', data.id);
+    console.log('✅ Assessment saved to database successfully with ID:', data.id);
+    console.log('✅ Returned data keys:', data ? Object.keys(data) : 'no data');
 
     // Return the assessment with its database ID
     return NextResponse.json({
