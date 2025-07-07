@@ -31,7 +31,8 @@ export async function GET(request: NextRequest) {
     console.log("Testing Supabase connectivity...");
     const { data, error } = await supabase
       .from('Assessments')
-      .select('count(*)', { count: 'exact' });
+      .select('id')
+      .limit(1);
     
     console.log("Connection test result:");
     console.log("- Data:", data);
