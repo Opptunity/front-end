@@ -116,7 +116,17 @@ export async function POST(request: NextRequest) {
         const sanitizedEmail = email ? email.trim() : ""
         console.log("Storing in Supabase with email:", sanitizedEmail || "No email")
         
+        // Log environment and configuration details
+        console.log("=== SUPABASE DEBUG INFO ===")
+        console.log("Environment:", process.env.NODE_ENV)
+        console.log("Supabase URL exists:", !!process.env.NEXT_PUBLIC_SUPABASE_URL)
+        console.log("Supabase Anon Key exists:", !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+        console.log("Supabase URL domain:", process.env.NEXT_PUBLIC_SUPABASE_URL?.split('.')[0] || 'unknown')
+        console.log("UUID for insert:", uuid)
+        console.log("Sanitized email:", sanitizedEmail)
+        
         // Insert new record directly (remove the check)
+        console.log("Attempting to insert into cv_data table...")
         const { data, error } = await supabase
           .from('cv_data')
           .insert({
@@ -133,11 +143,36 @@ export async function POST(request: NextRequest) {
           })
           .select()
         
+        console.log("=== SUPABASE INSERT RESULT ===")
+        console.log("Data returned:", data ? "YES" : "NO")
+        console.log("Error occurred:", error ? "YES" : "NO")
+        
         if (error) {
-          console.error("Supabase storage error:", error)
-        } else {
-          console.log("Successfully stored data in Supabase:", data)
+          console.error("=== DETAILED SUPABASE ERROR ===")
+          console.error("Error object:", JSON.stringify(error, null, 2))
+          console.error("Error message:", error.message)
+          console.error("Error code:", error.code)
+          console.error("Error details:", error.details)
+          console.error("Error hint:", error.hint)
           
+          // Try to understand what type of error this is
+          if (error.code === '42P01') {
+            console.error("❌ ERROR TYPE: Table 'cv_data' does not exist in this database")
+          } else if (error.code === '23505') {
+            console.error("❌ ERROR TYPE: Duplicate key violation - record already exists")
+          } else if (error.code === '42501') {
+            console.error("❌ ERROR TYPE: Permission denied - insufficient privileges")
+          } else if (error.message?.includes('fetch')) {
+            console.error("❌ ERROR TYPE: Network/connection error")
+          } else {
+            console.error("❌ ERROR TYPE: Unknown error")
+          }
+        } else {
+          console.log("✅ Successfully stored data in Supabase:", data)
+        }
+        
+        // Continue with the mapping logic only if insert was successful
+        if (!error && data) {
           // Create a mapping between the local ID and Supabase UUID
           // This allows us to reference the Supabase record later
           try {
