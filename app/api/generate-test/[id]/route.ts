@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { assessmentStorage } from "@/lib/storage"
+import { supabase } from "@/lib/supabase"
 import { fetchExpertDataForSkill, generateExpertQuestion } from "@/lib/api-service"
 import { generateId } from "@/lib/utils"
 import { detectIndustry } from "@/lib/industry-detection"
@@ -16,20 +17,52 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     console.log("Test generation requested for ID:", id)
     console.log("Store status:", assessmentStorage.debug())
 
-    const storedData = assessmentStorage.get(id)
+    let storedData = assessmentStorage.get(id)
+    let assessment = null
 
+    // If not found in memory, check Supabase
     if (!storedData || !storedData.assessment) {
-      console.log("Assessment not found for ID:", id)
-      return NextResponse.json(
-        {
-          error: "Assessment not found or incomplete",
-          success: false,
-        },
-        { status: 404 },
-      )
-    }
+      console.log("Assessment not found in memory, checking Supabase...")
+      
+      const { data: supabaseData, error: supabaseError } = await supabase
+        .from('Assessments')
+        .select('id, cvText, assessmentData')
+        .eq('id', id)
+        .single();
 
-    const { assessment } = storedData
+      if (supabaseError) {
+        console.log("Supabase error:", supabaseError)
+        return NextResponse.json(
+          {
+            error: "Assessment not found in memory or database",
+            success: false,
+          },
+          { status: 404 },
+        )
+      }
+
+      if (supabaseData && supabaseData.assessmentData) {
+        console.log("Found assessment in Supabase, using that data")
+        assessment = supabaseData.assessmentData
+        
+        // Optionally store in memory for future requests
+        assessmentStorage.set(id, {
+          text: supabaseData.cvText || '',
+          assessment: supabaseData.assessmentData
+        })
+      } else {
+        console.log("Assessment data not found in Supabase")
+        return NextResponse.json(
+          {
+            error: "Assessment not found or incomplete",
+            success: false,
+          },
+          { status: 404 },
+        )
+      }
+    } else {
+      assessment = storedData.assessment
+    }
 
     // Extract technical skills from the assessment
     const technicalSkills = assessment.technicalSkills || []

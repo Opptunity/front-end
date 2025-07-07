@@ -54,13 +54,13 @@ export default function HowItWorks() {
   ]
 
   return (
-    <section id="how-it-works" className="py-20 bg-white" dir={isRTL ? "rtl" : "ltr"}>
+    <section id="how-it-works" className="py-24 bg-white" dir={isRTL ? "rtl" : "ltr"}>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <ScrollReveal>
-          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-16">{t("howItWorksTitle")}</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-20">{t("howItWorksTitle")}</h2>
         </ScrollReveal>
 
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           {/* Step indicators */}
           <div className="flex justify-between mb-12 relative">
             <div className="absolute top-1/2 left-0 right-0 h-1 bg-gray-200 -translate-y-1/2 z-0"></div>
@@ -105,9 +105,9 @@ export default function HowItWorks() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
-              className="bg-gray-50 rounded-xl p-8 md:p-12"
+              className="bg-gray-50 rounded-xl p-6 md:p-8 lg:p-10"
             >
-              <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-8">
                 <div className="flex flex-col md:flex-row md:items-center gap-6">
                   <div
                     className={`w-16 h-16 rounded-full flex items-center justify-center text-white ${steps[activeStep].color}`}
@@ -120,7 +120,11 @@ export default function HowItWorks() {
                   </div>
                 </div>
 
-                <div className="relative w-full h-64 mt-4 rounded-lg overflow-hidden">{steps[activeStep].mockup}</div>
+                <div className="relative w-full h-96 md:h-[500px] lg:h-[600px] mt-6 rounded-lg overflow-y-auto overflow-x-hidden border border-gray-200 bg-white shadow-inner">
+                  <div className="min-h-full">
+                    {steps[activeStep].mockup}
+                  </div>
+                </div>
               </div>
             </motion.div>
           </AnimatePresence>

@@ -31,6 +31,7 @@ import { AnimatedContainer, AnimatedList, AnimatedListItem } from "./animated-co
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { LearningPathStep } from "@/lib/learning-pathway-types"
 import { CVImprovement } from "@/lib/cv-improvement-prompt"
+import { getApiUrl } from "@/utils/api-client"
 
 type SkillLevel = "Beginner" | "Intermediate" | "Advanced" | "Expert" | "Unknown"
 
@@ -205,6 +206,9 @@ export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSele
       // Start the retry process
       const assessmentData = await fetchWithRetry()
       setAssessment(assessmentData)
+      
+      // Now that we have assessment data, save it to the user profile
+     // await saveAssessmentToUserProfile(assessmentData)
     } catch (err) {
       console.error("Error fetching assessment:", err)
       setError(err instanceof Error ? err.message : "Failed to load assessment results")
@@ -339,13 +343,32 @@ export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSele
       setCVImprovementsError(null)
 
       console.log(`Fetching CV improvements for assessment ID: ${id}`)
-      const response = await fetch(`/api/cv-improvements?assessmentId=${id}`)
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch CV improvements: ${response.status}`)
+      
+      // Add retry logic for the CV improvements endpoint
+      const fetchWithRetry = async (retries = 2, delay = 1500) => {
+        try {
+          const response = await fetch(`/api/cv-improvements?assessmentId=${id}`)
+          
+          if (!response.ok) {
+            throw new Error(`API error: ${response.status}`)
+          }
+          
+          return await response.json()
+        } catch (error) {
+          if (retries <= 0) throw error
+          
+          console.log(`Retrying CV improvements fetch (${retries} attempts left)...`)
+          await new Promise(resolve => setTimeout(resolve, delay))
+          return fetchWithRetry(retries - 1, delay * 1.5)
+        }
       }
-
-      const data = await response.json()
+      
+      const data = await fetchWithRetry()
+      
+      if (!data || !data.improvements) {
+        throw new Error('Invalid response format from CV improvements API')
+      }
+      
       setCVImprovements(data.improvements)
       
       // Check if data came from cache
@@ -362,11 +385,80 @@ export function AssessmentResults({ id, onRoleSelect }: { id: string; onRoleSele
     } catch (error) {
       console.error("Error fetching CV improvements:", error)
       setCVImprovementsError(error instanceof Error ? error.message : "Failed to load CV improvements")
-      setCVImprovements(null)
+      
+      // Try to use fallback improvements directly when API fails completely
+      try {
+        // Make direct API call to get fallback improvements
+        const fallbackResponse = await fetch('/api/cv-improvements', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cvText: "fallback" }) // Just need any text to trigger fallbacks
+        })
+        
+        if (fallbackResponse.ok) {
+          const fallbackData = await fallbackResponse.json()
+          if (fallbackData && fallbackData.improvements) {
+            console.log("Using client-side fallback CV improvements")
+            setCVImprovements(fallbackData.improvements)
+          }
+        }
+      } catch (fallbackError) {
+        console.error("Failed to get fallback improvements:", fallbackError)
+        setCVImprovements(null)
+      }
     } finally {
       setCVImprovementsLoading(false)
     }
   }
+
+  // Add this new function to send the assessment to the backend
+  const saveAssessmentToUserProfile = async (assessmentData: AssessmentData) => {
+    try {
+      const userId = localStorage.getItem('userEmail') || localStorage.getItem('assessmentEmail');
+      // Get authentication token
+     const authToken = localStorage.getItem('authToken'); // Or however you store your auth token
+      
+      if (!authToken) {
+        console.log("User not authenticated, skipping profile save");
+        return;
+      }
+      
+      // Send the assessment data to your backend
+      const apiUrl = getApiUrl('/api/assessments/user-assessments');
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          //'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          userId: userId,
+          // Send exactly what the controller expects
+          summary: assessmentData.summary,
+          technicalSkills: assessmentData.technicalSkills,
+          softSkills: assessmentData.softSkills,
+          strengths: assessmentData.strengths,
+          improvementAreas: assessmentData.improvementAreas,
+          recommendations: assessmentData.recommendations || [],
+          industryAnalysis: assessmentData.industryAnalysis,
+          careerTrajectory: assessmentData.careerTrajectory,
+          skillGapAnalysis: assessmentData.skillGapAnalysis
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        console.log("Assessment saved to user profile:", result);
+      } else {
+        console.error("Failed to save assessment to user profile:", result.error);
+      }
+    } catch (error) {
+      console.error("Error saving assessment to user profile:", error);
+      // Don't throw the error - we don't want to affect the UI if this fails
+    }
+  };
 
   if (loading) {
     return (

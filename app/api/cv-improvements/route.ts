@@ -3,6 +3,7 @@ import { generateCVImprovements, generateFallbackCVImprovements } from "@/lib/cv
 import { buildUserProfile } from "@/lib/ai-agent"
 import { assessmentStorage } from "@/lib/storage"
 import { cvImprovementsCache } from "@/lib/cv-improvements-cache"
+import { supabase } from "@/lib/supabase"
 
 /**
  * GET endpoint to retrieve CV improvement suggestions
@@ -31,23 +32,54 @@ export async function GET(request: NextRequest) {
       })
     }
     
-    // Fetch the assessment
+    // First try to get assessment from memory storage
     const storedData = assessmentStorage.get(assessmentId)
+    let assessment = storedData?.assessment
+    let cvText = ""
     
-    if (!storedData || !storedData.assessment) {
-      return NextResponse.json(
-        { error: "Assessment not found" },
-        { status: 404 }
-      )
+    // If not in memory, try fetching from Supabase
+    if (!assessment) {
+      console.log("Assessment not found in memory cache, trying Supabase")
+      
+      // Try direct query first
+      const { data, error } = await supabase
+        .from('Assessments')
+        .select('assessmentData, cvText')
+        .eq('id', assessmentId)
+        .single()
+      
+      if (error) {
+        console.error("Error fetching from Supabase:", error)
+        
+        // Try as text search fallback
+        const { data: textData, error: textError } = await supabase
+          .from('Assessments')
+          .select('assessmentData, cvText')
+          .filter('id', 'ilike', `%${assessmentId}%`)
+          .limit(1)
+          .single()
+        
+        if (textError) {
+          console.error("Text search also failed:", textError)
+          return NextResponse.json(
+            { error: "Assessment not found" },
+            { status: 404 }
+          )
+        }
+        
+        assessment = textData.assessmentData
+        cvText = textData.cvText
+      } else {
+        assessment = data.assessmentData
+        cvText = data.cvText
+      }
+    } else {
+      // Get CV text from memory storage assessment
+      cvText = assessment.cvText || assessment.text || ""
     }
     
-    const assessment = storedData.assessment
-    
-    // Get CV text from assessment
-    const cvText = assessment.cvText || assessment.text || ""
-    
+    // If we still don't have CV text, use fallback improvements
     if (!cvText) {
-      // Instead of returning an error, use fallback improvements
       console.log("No CV text found in assessment, using fallback improvements")
       const fallbackImprovements = generateFallbackCVImprovements()
       

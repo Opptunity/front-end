@@ -61,15 +61,31 @@ export function LearningPathway({ assessmentId, selectedRole }: LearningPathwayP
       setError(null)
       
       try {
-        const response = await fetch(
-          `/api/learning-pathway?assessmentId=${assessmentId}&selectedRole=${encodeURIComponent(selectedRole)}`
-        )
-        
-        if (!response.ok) {
-          throw new Error(`Error: ${response.status}`)
+        // Add retry logic for the learning pathway endpoint
+        const fetchWithRetry = async (retries = 2, delay = 1500) => {
+          try {
+            const response = await fetch(
+              `/api/learning-pathway?assessmentId=${assessmentId}&selectedRole=${encodeURIComponent(selectedRole)}&steps=3`
+            )
+            
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}))
+              throw new Error(
+                errorData.error || `Error: ${response.status}`
+              )
+            }
+            
+            return await response.json()
+          } catch (error) {
+            if (retries <= 0) throw error
+            
+            console.log(`Retrying learning pathway fetch (${retries} attempts left)...`)
+            await new Promise(resolve => setTimeout(resolve, delay))
+            return fetchWithRetry(retries - 1, delay * 1.5)
+          }
         }
         
-        const data = await response.json()
+        const data = await fetchWithRetry()
         
         if (data.pathway && Array.isArray(data.pathway)) {
           setPathway(data.pathway)
@@ -80,6 +96,51 @@ export function LearningPathway({ assessmentId, selectedRole }: LearningPathwayP
       } catch (err) {
         console.error("Failed to fetch learning pathway:", err)
         setError("Failed to load learning pathway. Please try again.")
+        
+        // Try to use a simplified fallback pathway
+        try {
+          console.log("Using fallback learning pathway")
+          
+          // Create a simple fallback pathway
+          const fallbackPathway: LearningPathStep[] = [
+            {
+              title: `Step 1: Building Foundation for ${selectedRole}`,
+              description: `Start with fundamental skills and knowledge required for a ${selectedRole} position.`,
+              timeframe: "3-6 months",
+              courses: [
+                {
+                  title: `${selectedRole} Fundamentals`,
+                  provider: "General Learning",
+                  level: "Beginner",
+                  url: "",
+                  relevance: "Essential starting point for this career path"
+                }
+              ],
+              skillsToAcquire: ["Core Knowledge", "Basic Skills", "Industry Understanding"],
+              completionCriteria: "Complete at least one foundational course and build a simple portfolio project."
+            },
+            {
+              title: `Step 2: Advancing Your ${selectedRole} Skills`,
+              description: "Deepen your knowledge and gain practical experience.",
+              timeframe: "6-9 months",
+              courses: [
+                {
+                  title: "Advanced Techniques",
+                  provider: "Industry Courses",
+                  level: "Intermediate",
+                  url: "",
+                  relevance: "Builds on fundamentals to develop specialized skills"
+                }
+              ],
+              skillsToAcquire: ["Specialized Knowledge", "Problem Solving", "Technical Skills"],
+              completionCriteria: "Complete advanced courses and contribute to real-world projects."
+            }
+          ]
+          
+          setPathway(fallbackPathway)
+        } catch (fallbackError) {
+          console.error("Failed to create fallback pathway:", fallbackError)
+        }
       } finally {
         setLoading(false)
       }
