@@ -160,8 +160,8 @@ export async function POST(request: NextRequest) {
               file_type: file.type,
               parsed_data: null,
               assessment_results: null,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
             })
             .select()
           
