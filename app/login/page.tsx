@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { useLanguage } from "@/contexts/language-context"
@@ -9,12 +9,23 @@ import AnimatedButton from "@/components/animations/animated-button"
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { t, isRTL } = useLanguage()
   
   const [email, setEmail] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
+  
+  // Check for success parameter in URL when component mounts
+  useEffect(() => {
+    const success = searchParams.get('success')
+    if (success === 'true') {
+      setSuccessMessage(t("magicLinkSent") || "Authentication successful!")
+      // Optional: Clear the success parameter from the URL without page reload
+      window.history.replaceState({}, document.title, '/login')
+    }
+  }, [searchParams, t])
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,7 +34,8 @@ export default function LoginPage() {
     setSuccessMessage("")
     
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_AUTH_API_URL}/api/users/login`, {
+      // Using the new SSO signin endpoint
+      const response = await fetch(`${process.env.NEXT_PUBLIC_AUTH_API_URL}/api/sso/signin`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -37,8 +49,12 @@ export default function LoginPage() {
         throw new Error(data.error || t("loginFailed"))
       }
       
-      setSuccessMessage(t("magicLinkSent"))
-      setTimeout(() => setSuccessMessage(""), 5000)
+      setSuccessMessage(t("magicLinkSent") || "Magic link sent! Please check your email.")
+      
+      // Redirect to success page after a short delay
+      setTimeout(() => {
+        router.push('/login/success')
+      }, 1500)
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : t("loginError"))
     } finally {

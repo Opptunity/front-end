@@ -72,14 +72,25 @@ export async function POST(request: NextRequest) {
       try {
         text = await extractTextFromPdf(buffer);
         console.log("Text extracted, length:", text.length);
-        
+        console.log("Extracted text (first 200 chars):", text.substring(0, 200));
         // Check if the extracted text looks like raw PDF data
-        if (text.startsWith('%PDF-') || text.includes('endobj') || text.includes('stream')) {
+        const isProbablyRawPdf = (
+          text.startsWith('%PDF-') ||
+          (
+            text.length < 500 && // suspiciously short
+            /[\\x00-\\x08\\x0E-\\x1F]/.test(text) // contains lots of control chars
+          )
+        );
+
+        if (isProbablyRawPdf) {
           console.error("PDF extraction failed: Output contains raw PDF data");
           text = "PDF parsing failed. The extracted content appears to contain raw PDF data rather than readable text.";
         }
       } catch (pdfError) {
         console.error("PDF extraction failed, using placeholder text:", pdfError);
+        if (pdfError instanceof Error && pdfError.stack) {
+          console.error("PDF extraction error stack:", pdfError.stack);
+        }
         // Provide a placeholder text to continue the flow
         text = "PDF parsing failed. This is placeholder text to allow processing to continue.";
       }
@@ -90,8 +101,8 @@ export async function POST(request: NextRequest) {
       }
 
       // Generate or use provided ID for this assessment
-      const id = assessmentId || generateId() // For local compatibility 
-      const uuid = assessmentId || generateUuid() // Use provided ID or generate new one
+      const uuid = assessmentId || generateUuid(); // Always use UUID for DB
+      const id = uuid; // Use the same UUID for local storage and DB
       console.log("Assessment ID:", id)
       console.log("UUID for Supabase:", uuid)
 
@@ -105,80 +116,82 @@ export async function POST(request: NextRequest) {
         const sanitizedEmail = email ? email.trim() : ""
         console.log("Storing in Supabase with email:", sanitizedEmail || "No email")
         
-        // Check if record with this ID already exists (update if it does)
-        const { data: existingData, error: existingError } = await supabase
+        // Log environment and configuration details
+        console.log("=== SUPABASE DEBUG INFO ===")
+        console.log("Environment:", process.env.NODE_ENV)
+        console.log("Supabase URL exists:", !!process.env.NEXT_PUBLIC_SUPABASE_URL)
+        console.log("Supabase Anon Key exists:", !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+        console.log("Supabase URL domain:", process.env.NEXT_PUBLIC_SUPABASE_URL?.split('.')[0] || 'unknown')
+        console.log("UUID for insert:", uuid)
+        console.log("Sanitized email:", sanitizedEmail)
+        
+        // Insert new record directly (remove the check)
+        console.log("Attempting to insert into cv_data table...")
+        const { data, error } = await supabase
           .from('cv_data')
-          .select('id, email')
-          .eq('id', uuid)
-          .single()
+          .insert({
+            id: uuid,
+            email: sanitizedEmail,
+            local_id: id,
+            original_text: text,
+            file_name: file.name,
+            file_type: file.type,
+            parsed_data: null,
+            assessment_results: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
         
-        if (existingError && existingError.code !== 'PGRST116') { // Not found is ok
-          console.error("Error checking for existing record:", existingError)
-        }
+        console.log("=== SUPABASE INSERT RESULT ===")
+        console.log("Data returned:", data ? "YES" : "NO")
+        console.log("Error occurred:", error ? "YES" : "NO")
         
-        // If record exists, update it
-        if (existingData) {
-          console.log("Record exists, updating with new CV data")
-          const existingEmail = existingData.email as string || ''
-          const { error: updateError } = await supabase
-            .from('cv_data')
-            .update({
-              email: sanitizedEmail || existingEmail, // Keep existing email if new one not provided
-              original_text: text,
-              file_name: file.name,
-              file_type: file.type,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', uuid)
+        if (error) {
+          console.error("=== DETAILED SUPABASE ERROR ===")
+          console.error("Error object:", JSON.stringify(error, null, 2))
+          console.error("Error message:", error.message)
+          console.error("Error code:", error.code)
+          console.error("Error details:", error.details)
+          console.error("Error hint:", error.hint)
           
-          if (updateError) {
-            console.error("Supabase update error:", updateError)
+          // Try to understand what type of error this is
+          if (error.code === '42P01') {
+            console.error("❌ ERROR TYPE: Table 'cv_data' does not exist in this database")
+          } else if (error.code === '23505') {
+            console.error("❌ ERROR TYPE: Duplicate key violation - record already exists")
+          } else if (error.code === '42501') {
+            console.error("❌ ERROR TYPE: Permission denied - insufficient privileges")
+          } else if (error.message?.includes('fetch')) {
+            console.error("❌ ERROR TYPE: Network/connection error")
           } else {
-            console.log("Successfully updated record in Supabase")
+            console.error("❌ ERROR TYPE: Unknown error")
           }
         } else {
-          // Insert new record
-          const { data, error } = await supabase
-            .from('cv_data')
-            .insert({
-              id: uuid,
-              email: sanitizedEmail,
-              local_id: id,  // Store local id directly on insert
-              original_text: text,
-              file_name: file.name,
-              file_type: file.type,
-              parsed_data: null,
-              assessment_results: null,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            })
-            .select()
-          
-          if (error) {
-            console.error("Supabase storage error:", error)
-          } else {
-            console.log("Successfully stored data in Supabase:", data)
+          console.log("✅ Successfully stored data in Supabase:", data)
+        }
+        
+        // Continue with the mapping logic only if insert was successful
+        if (!error && data) {
+          // Create a mapping between the local ID and Supabase UUID
+          // This allows us to reference the Supabase record later
+          try {
+            const idMapKey = `supabase_id_${id}`
+            // Don't use localStorage in server-side code
+            // localStorage.setItem(idMapKey, uuid)
+            console.log(`Created ID mapping: ${id} -> ${uuid}`)
             
-            // Create a mapping between the local ID and Supabase UUID
-            // This allows us to reference the Supabase record later
-            try {
-              const idMapKey = `supabase_id_${id}`
-              // Don't use localStorage in server-side code
-              // localStorage.setItem(idMapKey, uuid)
-              console.log(`Created ID mapping: ${id} -> ${uuid}`)
+            // Store the mapping directly in the cv_data table
+            const { error: mappingError } = await supabase
+              .from('cv_data')
+              .update({ local_id: id })
+              .eq('id', uuid)
               
-              // Store the mapping directly in the cv_data table
-              const { error: mappingError } = await supabase
-                .from('cv_data')
-                .update({ local_id: id })
-                .eq('id', uuid)
-                
-              if (mappingError) {
-                console.warn("Could not store ID mapping in database:", mappingError)
-              }
-            } catch (e) {
-              console.warn("Could not store ID mapping:", e)
+            if (mappingError) {
+              console.warn("Could not store ID mapping in database:", mappingError)
             }
+          } catch (e) {
+            console.warn("Could not store ID mapping:", e)
           }
         }
       } catch (storageError) {
@@ -191,6 +204,7 @@ export async function POST(request: NextRequest) {
         supabase_id: uuid,
         success: true,
         message: "File uploaded successfully",
+        text: text,
         textLength: text.length,
         textQuality: text.includes("We encountered an issue") ? "low" : "good"
       })

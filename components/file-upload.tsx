@@ -13,6 +13,8 @@ import { FadeIn } from "./animated-container"
 import { Input } from "@/components/ui/input"
 import { useEmailCollection } from "@/contexts/email-collection-context"
 import { generateUuid } from "@/lib/utils"
+import { useAuth } from '@workos-inc/authkit-nextjs/components'
+import { useBackendAuth } from '@/contexts/backend-auth-context'
 
 interface FileUploadProps {
   initialEmail?: string;
@@ -30,6 +32,8 @@ export function FileUpload({ initialEmail = "" }: FileUploadProps) {
   const urlId = searchParams.get('id')
   const urlEmail = searchParams.get('email')
   const { collectEmail } = useEmailCollection()
+  const auth = useAuth()
+  const { backendUser } = useBackendAuth()
   
   // Update email if initialEmail prop changes or from URL
   useEffect(() => {
@@ -37,8 +41,12 @@ export function FileUpload({ initialEmail = "" }: FileUploadProps) {
       setEmail(urlEmail)
     } else if (initialEmail) {
       setEmail(initialEmail)
+    } else if (auth.user?.email) {
+      setEmail(auth.user.email)
+    } else if (backendUser?.email) {
+      setEmail(backendUser.email)
     }
-  }, [initialEmail, urlEmail])
+  }, [initialEmail, urlEmail, auth.user, backendUser])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -102,40 +110,86 @@ export function FileUpload({ initialEmail = "" }: FileUploadProps) {
         formData.append("assessment_id", assessmentId)
       }
 
-      setDebugInfo("Sending file to server...")
+      setDebugInfo("Processing PDF...")
 
-      const response = await fetch("/api/upload", {
+      // First upload and extract text from the PDF
+      const uploadResponse = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       })
 
+      if (!uploadResponse.ok) {
+        const uploadData = await uploadResponse.json()
+        throw new Error(uploadData.error || `Upload failed with status: ${uploadResponse.status}`)
+      }
+
+      const uploadData = await uploadResponse.json()
+      
+      // Check if the extracted text exists and has content
+      if (!uploadData.text) {
+        setDebugInfo("PDF processed but no text was extracted. Checking original text in storage...")
+        
+        // Try to get the text from the storage
+        try {
+          const textCheckResponse = await fetch(`/api/upload/${uploadData.id}/text`, {
+            method: "GET",
+          })
+          
+          if (!textCheckResponse.ok) {
+            throw new Error("Could not retrieve text content")
+          }
+          
+          const textData = await textCheckResponse.json()
+          if (!textData.text || textData.text.length < 10) {
+            throw new Error("Retrieved text is too short or empty")
+          }
+          
+          // Use the retrieved text
+          uploadData.text = textData.text
+        } catch (textError) {
+          throw new Error("Failed to extract text from PDF. Please ensure the PDF contains searchable text.")
+        }
+      }
+      
+      setUploadProgress(70)
+      setDebugInfo(`PDF processed successfully. Analyzing...`)
+
+      // Get the user ID from auth, or let the API handle visitor users
+      const userId = backendUser?.id || auth.user?.id || undefined; // Don't send empty string
+
+      // Now create the assessment using the extracted text
+      const assessmentResponse = await fetch("/api/assessments/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cvText: uploadData.text || uploadData.original_text,
+          userId: userId // This will be undefined for visitors, which is fine
+        }),
+      })
+
       clearInterval(progressInterval)
 
-      // Check if response is JSON
-      const contentType = response.headers.get("content-type")
-      if (!contentType || !contentType.includes("application/json")) {
-        // Handle non-JSON response
-        const text = await response.text()
-        throw new Error(`Server returned non-JSON response: ${text.substring(0, 100)}...`)
+      if (!assessmentResponse.ok) {
+        const assessmentData = await assessmentResponse.json()
+        throw new Error(assessmentData.error || `Assessment generation failed: ${assessmentResponse.status}`)
       }
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || `Upload failed with status: ${response.status}`)
-      }
-
+      const assessmentData = await assessmentResponse.json()
       setUploadProgress(100)
-      setDebugInfo(`Upload successful! ID: ${data.id}, Text length: ${data.textLength || "unknown"}`)
+      setDebugInfo(`Assessment created successfully! ID: ${assessmentData.id}`)
 
-      // Redirect to results page
-      setTimeout(() => {
-        router.push(`/assessment/${data.id}`)
-      }, 1000)
+      // Get source parameter to preserve it in navigation
+      const source = searchParams.get('source')
+      const targetUrl = source ? `/assessment/${assessmentData.id}?source=${source}` : `/assessment/${assessmentData.id}`
+
+      // Redirect to the assessment results page
+      router.push(targetUrl)
     } catch (err) {
       clearInterval(progressInterval)
-      console.error("Upload error:", err)
-      setError(`Failed to upload file: ${err instanceof Error ? err.message : "Unknown error"}`)
+      console.error("Process error:", err)
+      setError(`Failed to process file: ${err instanceof Error ? err.message : "Unknown error"}`)
       setUploading(false)
       setUploadProgress(0)
     }
@@ -223,22 +277,17 @@ export function FileUpload({ initialEmail = "" }: FileUploadProps) {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {uploading && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-2"
-          >
+      {uploading && (
+        <FadeIn>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>Uploading{uploadProgress >= 70 ? " and analyzing" : ""}...</span>
+              <span>{uploadProgress}%</span>
+            </div>
             <Progress value={uploadProgress} className="h-2" />
-            <p className="text-sm text-gray-500 text-center">
-              {uploadProgress < 100 ? "Uploading..." : "Processing..."}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </FadeIn>
+      )}
     </div>
   )
 }

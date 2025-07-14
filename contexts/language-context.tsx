@@ -18,7 +18,7 @@ const translations = {
     howItWorks: "How It Works",
     pricing: "Pricing",
     faq: "FAQ",
-    login: "Log In",
+    login: "Login",
     joinWaitlist: "Join the Waitlist",
     tryAssessment: "Try our free upskilling assessment",
     learnMore: "Learn More",
@@ -28,7 +28,7 @@ const translations = {
     heroSubtitle: "Accelerate learning, spark innovation, and track ROI—all in one seamless platform.",
 
     // Dashboard
-    dashboard: "Skills Dashboard",
+    dashboard: "Dashboard",
     welcomeBack: "Welcome back, Alex! Here's your team's progress",
     teamMembers: "Team Members",
     skillsAcquired: "Skills Acquired",
@@ -407,7 +407,7 @@ const translations = {
     // Login
     enterEmail: "Enter your email address to receive a magic login link",
     emailAddress: "Email address",
-    loginWithEmail: "Log in with Email",
+    loginWithEmail: "Login with Email",
     loggingIn: "Logging in...",
     loginFailed: "Login failed",
     loginError: "An error occurred during login",

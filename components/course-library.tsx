@@ -364,7 +364,7 @@ export function CourseLibrary({
 
           {/* Course tabs */}
           <Tabs defaultValue="recommended" className="w-full" onValueChange={(value) => setActiveTab(value as any)}>
-            <TabsList className="grid w-full grid-cols-4">
+           {/* <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="recommended" className="relative group">
                 <div className="flex items-center">
                   <TrendingUp className="mr-2 h-4 w-4" />
@@ -413,9 +413,10 @@ export function CourseLibrary({
                 />
               </TabsTrigger>
             </TabsList>
+            */}
 
             {/* Tab content */}
-            <TabsContent value="all" className="mt-6">
+           {/*  <TabsContent value="all" className="mt-6">
               <CourseGrid
                 courses={filteredCourses}
                 loading={loading}
@@ -430,6 +431,8 @@ export function CourseLibrary({
                 selectedRole={localSelectedRole}
               />
             </TabsContent>
+            */}
+            
 
             <TabsContent value="recommended" className="mt-6">
               <CourseGrid
@@ -440,7 +443,7 @@ export function CourseLibrary({
                 selectedRole={localSelectedRole}
               />
             </TabsContent>
-
+            {/*
             <TabsContent value="skills" className="mt-6">
               <CourseGrid
                 courses={filteredCourses}
@@ -460,6 +463,7 @@ export function CourseLibrary({
                 selectedRole={localSelectedRole}
               />
             </TabsContent>
+            */}
           </Tabs>
 
           {/* Filter options */}

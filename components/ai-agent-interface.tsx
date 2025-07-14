@@ -33,9 +33,15 @@ export default function AIAgentInterface() {
   const quickPrompts: QuickPrompt[] = [
     {
       icon: <ZapIcon className="h-6 w-6 text-blue-500" />,
-      title: "Assess my current data science skills",
-      category: "Skill Assessment",
-      prompt: "Can you help me assess my current data science skills?"
+      title: "What are the trending technologies in IT?",
+      category: "IT Trends",
+      prompt: "What are the current trending technologies in IT that I should learn?"
+    },
+    {
+      icon: <Activity className="h-6 w-6 text-blue-500" />,
+      title: "Compare React vs Angular",
+      category: "Tech Comparison",
+      prompt: "Compare React and Angular for frontend development. Which one should I learn?"
     },
     {
       icon: <ChevronRight className="h-6 w-6 text-blue-500" />,
@@ -44,16 +50,10 @@ export default function AIAgentInterface() {
       prompt: "How can I become a data scientist? Please suggest a step-by-step learning path."
     },
     {
-      icon: <Activity className="h-6 w-6 text-blue-500" />,
-      title: "Recommend courses for machine learning",
-      category: "Courses",
-      prompt: "Can you recommend some good courses for learning machine learning?"
-    },
-    {
       icon: <CornerUpRight className="h-6 w-6 text-blue-500" />,
-      title: "Help me transition to product management",
-      category: "Career",
-      prompt: "I want to transition to product management. What skills should I develop and how should I approach this career change?"
+      title: "AI and machine learning career prospects",
+      category: "Career Trends",
+      prompt: "What are the career prospects in AI and machine learning? What skills are in demand?"
     }
   ]
 

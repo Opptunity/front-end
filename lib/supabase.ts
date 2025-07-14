@@ -18,8 +18,8 @@ export type CvData = {
   assessment_results: any
   file_name: string
   file_type: string
-  created_at?: string
-  updated_at?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 // Function to get CV data by ID
@@ -44,7 +44,7 @@ export async function updateAssessmentResults(id: string, results: any) {
     .from('cv_data')
     .update({ 
       assessment_results: results,
-      updated_at: new Date().toISOString()
+      updatedAt: new Date().toISOString()
     })
     .eq('id', id)
   
@@ -62,7 +62,7 @@ export async function updateParsedData(id: string, parsedData: any) {
     .from('cv_data')
     .update({ 
       parsed_data: parsedData,
-      updated_at: new Date().toISOString()
+      updatedAt: new Date().toISOString()
     })
     .eq('id', id)
   
@@ -98,7 +98,7 @@ export async function updateEmailForAssessment(id: string, email: string) {
       .from('cv_data')
       .update({ 
         email: email,
-        updated_at: new Date().toISOString()
+        updatedAt: new Date().toISOString()
       })
       .eq('id', finalId)
     
@@ -115,8 +115,8 @@ export async function updateEmailForAssessment(id: string, email: string) {
         id: finalId,
         local_id: id, // Store the local ID as well
         email: email,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       })
     
     if (error) {

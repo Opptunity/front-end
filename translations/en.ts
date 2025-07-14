@@ -1,8 +1,28 @@
-{
+export default {
   "loginWelcome": "Welcome Back",
   "emailAddress": "Email Address",
   "emailPlaceholder": "you@example.com",
   "sendLoginLink": "Send Login Link",
   "sendingLink": "Sending...",
-  "noAccountYet": "Don't have an account?"
+  "noAccountYet": "Don't have an account?",
+  "signup": "Sign Up",
+  "createAccount": "Create your account to get started",
+  "fullName": "Full Name",
+  "username": "Username",
+  "jobTitle": "Job Title",
+  "role": "Role",
+  "jobSeeker": "Job Seeker",
+  "employer": "Employer",
+  "recruiter": "Recruiter",
+  "password": "Password",
+  "confirmPassword": "Confirm Password",
+  "signingUp": "Signing Up...",
+  "passwordsDoNotMatch": "Passwords do not match",
+  "signupFailed": "Signup failed",
+  "signupError": "An error occurred during signup",
+  "accountCreated": "Account created successfully",
+  "alreadyHaveAccount": "Already have an account?",
+  "backToHome": "Back to Home",
+  "login": "Login",
+  "dashboard": "Dashboard"
 } 
