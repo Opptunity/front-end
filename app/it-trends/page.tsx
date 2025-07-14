@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion"
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import PageTransition from "@/components/animations/page-transition"
 import ITTrendsExplorer from "@/components/it-trends-explorer"
 import { Button } from "@/components/ui/button"
@@ -120,6 +121,28 @@ export default function ITTrendsPage() {
   return (
     <PageTransition>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50" dir={isRTL ? "rtl" : "ltr"}>
+        {/* Simple Header with only Opptunity Logo */}
+        <motion.header
+          className="border-b border-gray-100 bg-white sticky top-0 z-50"
+          initial={{ y: -100 }}
+          animate={{ y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+        >
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex h-16 items-center">
+              <motion.div 
+                className="flex items-center" 
+                whileHover={{ scale: 1.05 }} 
+                transition={{ duration: 0.2 }}
+              >
+                <Link href="/dashboard" className="flex items-center">
+                  <span className="text-2xl font-bold text-blue-600">Opptunity</span>
+                </Link>
+              </motion.div>
+            </div>
+          </div>
+        </motion.header>
+
           {/* Hero Section */}
           <section className="py-16 px-4 relative overflow-hidden">
             {/* Background Elements */}

@@ -15,6 +15,7 @@ const publicPaths = [
   '/api/auth/signout',
   '/api/auth/check-session',
   '/assessment',
+  '/assessment/',  // Add trailing slash variant
 ];
 
 // Define paths that should skip session validation entirely (fresh login)
@@ -36,10 +37,26 @@ const noCachePaths = [
 ];
 
 const isPublicPath = (path: string) => {
-  return publicPaths.some(publicPath => 
+  // Check regular public paths
+  const isRegularPublic = publicPaths.some(publicPath => 
     path === publicPath || 
     path.startsWith(`${publicPath}/`)
   );
+  
+  // Also allow assessment results pages for visitors
+  const isAssessmentResult = /^\/assessment\/[^\/]+(\?.*)?$/.test(path);
+  
+  // Allow assessment-related API routes for visitors
+  const isAssessmentAPI = /^\/api\/(assess|generate-test|assessment-report|course-recommendations)\/[^\/]+/.test(path) || 
+                          path === '/api/course-recommendations' ||
+                          path === '/api/learning-pathway' ||
+                          path === '/api/cv-improvements' ||
+                          path === '/api/assessment-report' ||
+                          path === '/api/upload' ||                    // Add this
+                          path === '/api/assessments/create' ||       // Add this
+                          /^\/api\/upload\/[^\/]+\/text$/.test(path); // Add this for text retrieval
+  
+  return isRegularPublic || isAssessmentResult || isAssessmentAPI;
 };
 
 const isFreshAuthPath = (path: string) => {

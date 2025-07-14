@@ -154,8 +154,8 @@ export function FileUpload({ initialEmail = "" }: FileUploadProps) {
       setUploadProgress(70)
       setDebugInfo(`PDF processed successfully. Analyzing...`)
 
-      // Get the user ID from auth
-      const userId = backendUser?.id || auth.user?.id || email
+      // Get the user ID from auth, or let the API handle visitor users
+      const userId = backendUser?.id || auth.user?.id || undefined; // Don't send empty string
 
       // Now create the assessment using the extracted text
       const assessmentResponse = await fetch("/api/assessments/create", {
@@ -164,8 +164,8 @@ export function FileUpload({ initialEmail = "" }: FileUploadProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          cvText: uploadData.text || uploadData.original_text, // Try both possible field names
-          userId: userId
+          cvText: uploadData.text || uploadData.original_text,
+          userId: userId // This will be undefined for visitors, which is fine
         }),
       })
 

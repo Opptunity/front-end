@@ -24,6 +24,8 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Analyzing CV with AI...');
+    console.log('CV text length:', cvText.length);
+    console.log('CV text start (first 100 chars):', cvText.substring(0, 100));
     const assessment = await assessSkills(cvText, email);
     
     console.log('=== AI ASSESSMENT DEBUG ===');
@@ -50,17 +52,82 @@ export async function POST(request: NextRequest) {
     // Check if engineer already exists
     const existingEngineer = await getEngineerByEmail(email);
     if (existingEngineer) {
-      console.log(`Engineer with email ${email} already exists`);
+      console.log(`Engineer with email ${email} already exists - updating with new CV data`);
+      
+      // Parse new name for database update
+      const nameParts = extractedInfo.name.trim().split(' ');
+      const prenom = nameParts[0] || '';
+      const nom = nameParts.slice(1).join(' ') || '';
+
+      console.log('=== UPDATING EXISTING ENGINEER ===');
+      console.log('Existing engineer:', `${existingEngineer.prenom} ${existingEngineer.nom}`);
+      console.log('New extracted info:', extractedInfo);
+      console.log('New name parts - prenom:', prenom, 'nom:', nom);
+      
+      // Update existing engineer with new CV data
+      const { data: updatedEngineer, error: updateError } = await engineerSupabase
+        .from('ingenieurs')
+        .update({
+          nom: nom,
+          prenom: prenom,
+          adresse_residence: extractedInfo.residence_address
+        })
+        .eq('ingenieur_id', existingEngineer.ingenieur_id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Error updating engineer:', updateError);
+        // If update fails, return the existing engineer data but with extracted role/experience
+        return NextResponse.json({
+          success: true,
+          message: 'Engineer exists, update failed but proceeding with assessment',
+          employee: {
+            id: existingEngineer.ingenieur_id,
+            name: extractedInfo.name, // Use newly extracted name even if DB update failed
+            email: existingEngineer.email,
+            role: extractedInfo.role,
+            experience_level: extractedInfo.experience_level,
+            residence_address: extractedInfo.residence_address || existingEngineer.adresse_residence,
+            skills_count: assessment.technicalSkills?.length || 0
+          },
+          assessment_summary: assessment.summary,
+          assessment_data: {
+            technicalSkills: assessment.technicalSkills || [],
+            softSkills: assessment.softSkills || [],
+            strengths: assessment.strengths || [],
+            improvementAreas: assessment.improvementAreas || [],
+            extractedContactInfo: assessment.contactInfo || null
+          }
+        });
+      }
+
+      console.log('Engineer updated successfully:', updatedEngineer);
+
+      // Add technical skills to the database for the updated engineer
+      if (assessment.technicalSkills && assessment.technicalSkills.length > 0) {
+        try {
+          console.log(`Updating skills for existing engineer ${existingEngineer.ingenieur_id}`);
+          await addEngineerSkillsToDatabase(existingEngineer.ingenieur_id, assessment.technicalSkills);
+          console.log(`✅ Successfully updated ${assessment.technicalSkills.length} skills`);
+        } catch (skillError) {
+          console.error('❌ Error updating skills:', skillError);
+        }
+      }
+
+      // Store/update complete assessment data
+      await storeCompleteAssessmentData(existingEngineer.ingenieur_id, assessment, cvText, extractedInfo);
+
       return NextResponse.json({
         success: true,
-        message: 'Engineer already exists',
+        message: 'Engineer profile updated successfully!',
         employee: {
           id: existingEngineer.ingenieur_id,
-          name: `${existingEngineer.prenom} ${existingEngineer.nom}`.trim(),
-          email: existingEngineer.email,
+          name: `${updatedEngineer.prenom} ${updatedEngineer.nom}`.trim(),
+          email: updatedEngineer.email,
           role: extractedInfo.role,
           experience_level: extractedInfo.experience_level,
-          residence_address: existingEngineer.adresse_residence,
+          residence_address: updatedEngineer.adresse_residence,
           skills_count: assessment.technicalSkills?.length || 0
         },
         assessment_summary: assessment.summary,
