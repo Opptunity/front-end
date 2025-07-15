@@ -9,6 +9,7 @@ import AnimatedButton from "@/components/animations/animated-button"
 import { useAuth } from '@workos-inc/authkit-nextjs/components'
 import { useBackendAuth } from '@/contexts/backend-auth-context'
 import ProtectedRoute from "@/components/protected-route"
+import CreateTicketForm from "@/components/create-ticket-form"
 
 // Define the Assessment interface
 interface Assessment {
@@ -30,6 +31,7 @@ export default function DashboardPage() {
   const { backendUser } = useBackendAuth()
   const [assessments, setAssessments] = useState<Assessment[]>([])
   const [assessmentsLoading, setAssessmentsLoading] = useState(true)
+  const [showCreateTicket, setShowCreateTicket] = useState(false)
   
   useEffect(() => {
     // Function to fetch user assessments
@@ -341,14 +343,20 @@ export default function DashboardPage() {
                       </div>
                       
                       <div className="space-y-3">
-                        <button className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center">
+                        <button
+                          className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center"
+                          onClick={() => router.push('/dashboard/create-ticket')}
+                        >
                           <span>Create New Ticket</span>
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2">
                             <path d="M5 12h14"></path>
                             <path d="M12 5v14"></path>
                           </svg>
                         </button>
-                        <button className="w-full border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center">
+                        <button
+                          className="w-full border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center"
+                          onClick={() => router.push('/dashboard/my-tickets')}
+                        >
                           <span>View My Tickets</span>
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -827,6 +835,13 @@ export default function DashboardPage() {
           </motion.div>
         </main>
       </div>
+      
+      {/* Create Ticket Modal */}
+      {/*
+      {showCreateTicket && (
+        <CreateTicketForm onClose={() => setShowCreateTicket(false)} />
+      )}
+      */}
     </ProtectedRoute>
   )
 } 

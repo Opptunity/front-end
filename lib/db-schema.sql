@@ -528,3 +528,47 @@ BEGIN
   LIMIT 1;
 END;
 $$ LANGUAGE plpgsql; 
+
+-- ================================
+-- TICKET MANAGEMENT SYSTEM
+-- ================================
+
+-- Create tickets table for storing job specification tickets
+CREATE TABLE IF NOT EXISTS public.tickets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES public.users(id),
+  specification TEXT NOT NULL,
+  priority TEXT CHECK (priority IN ('Critical', 'High', 'Medium', 'Low')) DEFAULT 'Medium',
+  status TEXT CHECK (status IN ('Open', 'In Progress', 'Completed', 'Closed')) DEFAULT 'Open',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable Row Level Security for tickets
+ALTER TABLE public.tickets ENABLE ROW LEVEL SECURITY;
+
+-- Create policy to allow users to read their own tickets
+CREATE POLICY "Allow users to read their own tickets" 
+ON public.tickets FOR SELECT 
+USING (auth.uid() = user_id);
+
+-- Create policy to allow users to insert their own tickets
+CREATE POLICY "Allow users to insert their own tickets" 
+ON public.tickets FOR INSERT 
+WITH CHECK (auth.uid() = user_id);
+
+-- Create policy to allow users to update their own tickets
+CREATE POLICY "Allow users to update their own tickets" 
+ON public.tickets FOR UPDATE 
+USING (auth.uid() = user_id);
+
+-- Create policy to allow service role full access
+CREATE POLICY "Allow service role full access to tickets" 
+ON public.tickets 
+USING (auth.role() = 'service_role');
+
+-- Create indexes for tickets
+CREATE INDEX IF NOT EXISTS tickets_user_id_idx ON public.tickets (user_id);
+CREATE INDEX IF NOT EXISTS tickets_priority_idx ON public.tickets (priority);
+CREATE INDEX IF NOT EXISTS tickets_status_idx ON public.tickets (status);
+CREATE INDEX IF NOT EXISTS tickets_created_at_idx ON public.tickets (created_at DESC); 
