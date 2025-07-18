@@ -4,6 +4,34 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Ticket, Priority, getUserTickets, clearAllTickets } from "@/lib/tickets-local";
+import { fetchJiraTickets } from "@/lib/jira-client";
+import { createTicket } from "@/lib/tickets-local";
+
+async function syncJiraTicketsToLocal() {
+  try {
+    const jiraTickets = await fetchJiraTickets("LEOP");
+    const localTickets = await getUserTickets();
+    const localSpecs = new Set(localTickets.map(t => t.specification));
+    for (const jiraTicket of jiraTickets) {
+      const specification = jiraTicket.fields.summary;
+      let description = "";
+      if (jiraTicket.fields.description && jiraTicket.fields.description.content) {
+        description = jiraTicket.fields.description.content
+          .map((block: any) =>
+            block.content
+              ? block.content.map((c: any) => c.text).join(" ")
+              : ""
+          )
+          .join("\n");
+      }
+      if (!localSpecs.has(specification)) {
+        await createTicket({ specification, description, priority: "Medium" }); // Map priority as needed
+      }
+    }
+  } catch (err) {
+    console.error("Error syncing Jira tickets on client:", err);
+  }
+}
 
 export default function MyTicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -13,11 +41,32 @@ export default function MyTicketsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const fetchTickets = async () => {
+    const fetchAndSyncTickets = async () => {
       try {
+        // 1. Call your API route to fetch Jira tickets server-side
+        const res = await fetch('/api/sync-jira-tickets', { method: 'POST' });
+        const { tickets } = await res.json();
+
+        // 2. Save tickets to localStorage
+        if (tickets && Array.isArray(tickets)) {
+          const localTickets = await getUserTickets();
+          const localJiraKeys = new Set(localTickets.map(t => t.jiraKey));
+          for (const t of tickets) {
+            if (!localJiraKeys.has(t.jiraKey)) {
+              await createTicket({
+                specification: t.specification,
+                description: t.description,
+                priority: t.priority || 'Medium',
+                jiraKey: t.jiraKey
+              });
+            }
+          }
+        }
+
+        // 3. Load tickets from localStorage as before
         const data = await getUserTickets();
-        // Sort tickets by priority and then by creation date
-        const sortedTickets = data.sort((a: Ticket, b: Ticket) => {
+        const openTickets = data;
+        const sortedTickets = openTickets.sort((a: Ticket, b: Ticket) => {
           const priorityOrder = { Critical: 0, High: 1, Medium: 2, Low: 3 };
           const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
           if (priorityDiff !== 0) return priorityDiff;
@@ -26,13 +75,12 @@ export default function MyTicketsPage() {
         setTickets(sortedTickets);
         setFilteredTickets(sortedTickets);
       } catch (error) {
-        console.error('Error fetching tickets:', error);
+        console.error('Error fetching/syncing tickets:', error);
       } finally {
         setLoading(false);
       }
     };
-
-    fetchTickets();
+    fetchAndSyncTickets();
   }, []);
 
   const getPriorityColor = (priority: Priority) => {
@@ -84,6 +132,8 @@ export default function MyTicketsPage() {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-xl shadow-lg p-8 w-full max-w-2xl border border-gray-200"
       >
+        {/* DEBUG: Show raw tickets as JSON */}
+        {/*<pre className="mb-4 p-2 bg-gray-100 text-xs text-gray-700 rounded overflow-x-auto max-h-64">{JSON.stringify(tickets, null, 2)}</pre>*/}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-blue-700">My Tickets</h1>
           <div className="flex items-center space-x-2">
@@ -197,6 +247,11 @@ export default function MyTicketsPage() {
                     ? `${ticket.specification.substring(0, 200)}...` 
                     : ticket.specification
                   }
+                  {ticket.description && (
+                    <div className="mt-2 text-gray-600 text-sm">
+                      <strong>Description:</strong> {ticket.description.length > 200 ? `${ticket.description.substring(0, 200)}...` : ticket.description}
+                    </div>
+                  )}
                 </div>
                 <div className="mt-3 text-xs text-gray-500 group-hover:text-blue-600 transition-colors duration-200">
                   Click to view full details →

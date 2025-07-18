@@ -2,18 +2,70 @@ export type Priority = "Critical" | "High" | "Medium" | "Low"
 export type Status = "Open" | "In Progress" | "Completed" | "Closed"
 
 export interface Ticket {
-  id: string
-  user_id: string
-  specification: string
-  priority: Priority
-  status: Status
-  created_at: string
-  updated_at: string
+  id: string;
+  user_id: string;
+  specification: string;
+  description?: string;
+  priority: Priority;
+  status: Status;
+  created_at: string;
+  updated_at: string;
+  jiraKey?: string;
+  // GroqCloud summary fields
+  position_title?: string;
+  client_name?: string;
+  client_company?: string;
+  seniority?: string;
+  required_skills?: string[];
+  contract_type?: string;
+  duration?: string;
+  experience?: string;
+  budget_min?: number;
+  budget_max?: number;
+  currency?: string;
+  rate_type?: string;
+  work_arrangement?: string;
+  work_location?: string;
+  client_email?: string;
+  client_phone?: string;
+  start_date?: string;
+  responsibilities?: string[];
+  preferred_qualifications?: string[];
+  benefits?: string[];
+  application_process?: string;
+  red_flags?: string[];
+  summary_sentence?: string;
 }
 
 export interface CreateTicketData {
-  specification: string
-  priority: Priority
+  specification: string;
+  description?: string;
+  priority: Priority;
+  jiraKey?: string;
+  // GroqCloud summary fields
+  position_title?: string;
+  client_name?: string;
+  client_company?: string;
+  seniority?: string;
+  required_skills?: string[];
+  contract_type?: string;
+  duration?: string;
+  experience?: string;
+  budget_min?: number;
+  budget_max?: number;
+  currency?: string;
+  rate_type?: string;
+  work_arrangement?: string;
+  work_location?: string;
+  client_email?: string;
+  client_phone?: string;
+  start_date?: string;
+  responsibilities?: string[];
+  preferred_qualifications?: string[];
+  benefits?: string[];
+  application_process?: string;
+  red_flags?: string[];
+  summary_sentence?: string;
 }
 
 // Generate a simple ID
@@ -27,7 +79,7 @@ const getCurrentUserId = () => {
 }
 
 // Get tickets from localStorage
-const getTicketsFromStorage = (): Ticket[] => {
+export function getTicketsFromStorage(): Ticket[] {
   if (typeof window === 'undefined') return []
   
   try {
@@ -57,10 +109,36 @@ export async function createTicket(ticketData: CreateTicketData): Promise<Ticket
       id: generateId(),
       user_id: getCurrentUserId(),
       specification: ticketData.specification,
+      description: ticketData.description,
       priority: ticketData.priority,
       status: 'Open',
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      jiraKey: ticketData.jiraKey,
+      // GroqCloud summary fields
+      position_title: ticketData.position_title,
+      client_name: ticketData.client_name,
+      client_company: ticketData.client_company,
+      seniority: ticketData.seniority,
+      required_skills: ticketData.required_skills,
+      contract_type: ticketData.contract_type,
+      duration: ticketData.duration,
+      experience: ticketData.experience,
+      budget_min: ticketData.budget_min,
+      budget_max: ticketData.budget_max,
+      currency: ticketData.currency,
+      rate_type: ticketData.rate_type,
+      work_arrangement: ticketData.work_arrangement,
+      work_location: ticketData.work_location,
+      client_email: ticketData.client_email,
+      client_phone: ticketData.client_phone,
+      start_date: ticketData.start_date,
+      responsibilities: ticketData.responsibilities,
+      preferred_qualifications: ticketData.preferred_qualifications,
+      benefits: ticketData.benefits,
+      application_process: ticketData.application_process,
+      red_flags: ticketData.red_flags,
+      summary_sentence: ticketData.summary_sentence,
     }
 
     const tickets = getTicketsFromStorage()

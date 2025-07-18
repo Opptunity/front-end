@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Ticket, Priority, getTicketById } from "@/lib/tickets-local";
+import { Ticket, Priority, getTicketById, updateTicket } from "@/lib/tickets-local";
+import { FaUser, FaBuilding, FaEnvelope, FaList, FaCheckCircle, FaExclamationTriangle, FaMoneyBill, FaMapMarkerAlt, FaBriefcase, FaLightbulb, FaClipboardList, FaPhone, FaCalendarAlt } from 'react-icons/fa';
 
 export default function TicketDetailPage() {
   const [ticket, setTicket] = useState<Ticket | null>(null);
@@ -46,6 +47,11 @@ export default function TicketDetailPage() {
       case "Low": return "📌";
       default: return "📄";
     }
+  };
+
+  const handleMarkAsComplete = async () => {
+    await updateTicket(ticketId, { status: "Completed" });
+    router.push("/dashboard/my-tickets");
   };
 
   if (loading) {
@@ -118,8 +124,94 @@ export default function TicketDetailPage() {
         {/* Ticket Content */}
         <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Job Specification</h2>
-          <div className="text-gray-800 whitespace-pre-line leading-relaxed">
+          <div className="text-gray-800 whitespace-pre-line leading-relaxed mb-4">
             {ticket.specification}
+          </div>
+          {/* Enhanced Description Display */}
+          {ticket.description && (() => {
+            let summary: any = null;
+            try {
+              summary = JSON.parse(ticket.description);
+            } catch {
+              // Not JSON, show as plain text
+              return (
+                <div className="mb-4">
+                  <h3 className="font-semibold text-gray-700 mb-1">Description</h3>
+                  <div className="text-gray-700 whitespace-pre-line">{ticket.description}</div>
+                </div>
+              );
+            }
+            // If JSON, show as summary fields
+            return (
+              <div className="mb-4 space-y-6">
+                {summary.summary_sentence && (
+                  <div className="p-4 bg-blue-50 border-l-4 border-blue-400 rounded mb-4 flex items-center">
+                    <span style={{ marginRight: '0.5rem' }}><FaLightbulb color="#60a5fa" /></span>
+                    <span className="text-blue-800 font-semibold">{summary.summary_sentence}</span>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-gray-700">
+                  {summary.position_title && <div><span style={{ marginRight: '0.25rem' }}><FaBriefcase color="#6b7280" /></span><strong>Position Title:</strong> {summary.position_title}</div>}
+                  {summary.client_name && <div><span style={{ marginRight: '0.25rem' }}><FaUser color="#6b7280" /></span><strong>Client Name:</strong> {summary.client_name}</div>}
+                  {summary.client_company && <div><span style={{ marginRight: '0.25rem' }}><FaBuilding color="#6b7280" /></span><strong>Client Company:</strong> {summary.client_company}</div>}
+                  {summary.seniority && <div><span style={{ marginRight: '0.25rem' }}><FaClipboardList color="#6b7280" /></span><strong>Seniority:</strong> {summary.seniority}</div>}
+                  {summary.required_skills && summary.required_skills.length > 0 && <div><span style={{ marginRight: '0.25rem' }}><FaList color="#6b7280" /></span><strong>Required Skills:</strong> {summary.required_skills.join(', ')}</div>}
+                  {summary.contract_type && <div><span style={{ marginRight: '0.25rem' }}><FaBriefcase color="#6b7280" /></span><strong>Contract Type:</strong> {summary.contract_type}</div>}
+                  {summary.duration && <div><span style={{ marginRight: '0.25rem' }}><FaClipboardList color="#6b7280" /></span><strong>Duration:</strong> {summary.duration}</div>}
+                  {summary.experience && <div><span style={{ marginRight: '0.25rem' }}><FaClipboardList color="#6b7280" /></span><strong>Experience:</strong> {summary.experience}</div>}
+                  {(summary.budget_min || summary.budget_max) && <div><span style={{ marginRight: '0.25rem' }}><FaMoneyBill color="#6b7280" /></span><strong>Budget:</strong> {summary.budget_min} - {summary.budget_max} {summary.currency || ''} ({summary.rate_type || ''})</div>}
+                  {summary.work_arrangement && <div><span style={{ marginRight: '0.25rem' }}><FaClipboardList color="#6b7280" /></span><strong>Work Arrangement:</strong> {summary.work_arrangement}</div>}
+                  {summary.work_location && <div><span style={{ marginRight: '0.25rem' }}><FaMapMarkerAlt color="#6b7280" /></span><strong>Work Location:</strong> {summary.work_location}</div>}
+                  {summary.client_email && <div><span style={{ marginRight: '0.25rem' }}><FaEnvelope color="#6b7280" /></span><strong>Client Email:</strong> {summary.client_email}</div>}
+                  {summary.client_phone && <div><span style={{ marginRight: '0.25rem' }}><FaPhone color="#6b7280" /></span><strong>Client Phone:</strong> {summary.client_phone}</div>}
+                  {summary.start_date && <div><span style={{ marginRight: '0.25rem' }}><FaCalendarAlt color="#6b7280" /></span><strong>Start Date:</strong> {summary.start_date}</div>}
+                </div>
+                {summary.responsibilities && summary.responsibilities.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="font-semibold text-gray-800 mb-1 flex items-center"><span style={{ marginRight: '0.5rem' }}><FaList color="#6b7280" /></span>Responsibilities</h4>
+                    <ul className="list-disc list-inside text-gray-700">
+                      {summary.responsibilities.map((item: string, idx: number) => <li key={idx}>{item}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {summary.preferred_qualifications && summary.preferred_qualifications.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="font-semibold text-gray-800 mb-1 flex items-center"><span style={{ marginRight: '0.5rem' }}><FaCheckCircle color="#22c55e" /></span>Preferred Qualifications</h4>
+                    <ul className="list-disc list-inside text-gray-700">
+                      {summary.preferred_qualifications.map((item: string, idx: number) => <li key={idx}>{item}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {summary.benefits && summary.benefits.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="font-semibold text-gray-800 mb-1 flex items-center"><span style={{ marginRight: '0.5rem' }}><FaMoneyBill color="#22c55e" /></span>Benefits</h4>
+                    <ul className="list-disc list-inside text-gray-700">
+                      {summary.benefits.map((item: string, idx: number) => <li key={idx}>{item}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {summary.application_process && (
+                  <div className="mt-4">
+                    <h4 className="font-semibold text-gray-800 mb-1 flex items-center"><span style={{ marginRight: '0.5rem' }}><FaClipboardList color="#3b82f6" /></span>Application Process</h4>
+                    <div className="text-gray-700 whitespace-pre-line">{summary.application_process}</div>
+                  </div>
+                )}
+                {summary.red_flags && summary.red_flags.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="font-semibold text-gray-800 mb-1 flex items-center"><span style={{ marginRight: '0.5rem' }}><FaExclamationTriangle color="#ef4444" /></span>Red Flags</h4>
+                    <ul className="list-disc list-inside text-gray-700">
+                      {summary.red_flags.map((item: string, idx: number) => <li key={idx}>{item}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+          <div className="text-sm text-gray-600 mt-4 space-y-1">
+            <div><strong>Status:</strong> {ticket.status}</div>
+            <div><strong>Created At:</strong> {new Date(ticket.created_at).toLocaleString()}</div>
+            <div><strong>Updated At:</strong> {new Date(ticket.updated_at).toLocaleString()}</div>
+            {ticket.jiraKey && <div><strong>Jira Key:</strong> {ticket.jiraKey}</div>}
           </div>
         </div>
 
@@ -138,6 +230,7 @@ export default function TicketDetailPage() {
           </button>
           <button
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
+            onClick={handleMarkAsComplete}
           >
             Mark as Complete
           </button>
