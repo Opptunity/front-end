@@ -400,6 +400,76 @@ export async function getIngenieurWithCompetencesEtDisponibilite() {
   }
 }
 
+// Fetch engineers with real availability calculation
+export async function getEngineersWithRealAvailability() {
+  try {
+    const { data: engineers, error } = await engineerSupabase
+      .from('ingenieurs')
+      .select(`
+        id,
+        nom,
+        competences:ingenieur_competences(
+          competences(nom, niveau)
+        ),
+        projets:affectation_projets(
+          projet:projets(
+            id, 
+            nom,
+            date_debut_contrat,
+            date_fin_contrat,
+            charge
+          )
+        ),
+        disponibilites(
+          disponibilite_effective,
+          statut_disponibilite
+        )
+      `);
+
+    if (error) throw error;
+
+    return (engineers || []).map(eng => {
+      const realAvailability = calculateRealAvailability(eng);
+      return {
+        id: eng.id,
+        nom: eng.nom,
+        competences: (eng.competences || []).flatMap(c =>
+          Array.isArray(c.competences)
+            ? (c.competences as any[]).map((comp: any) => comp.nom)
+            : (c.competences as any)?.nom
+        ).filter(Boolean),
+        disponibilite: realAvailability,
+        statut: realAvailability > 70 ? 'Disponible' : 
+               realAvailability > 30 ? 'Partiellement disponible' : 'Indisponible',
+        projets: (eng.projets || []).length
+      };
+    });
+  } catch (error) {
+    console.error('Database error:', error);
+    throw new Error('Failed to fetch engineers');
+  }
+}
+
+function calculateRealAvailability(engineer: any) {
+  if (!engineer.projets || engineer.projets.length === 0) return 100;
+
+  const today = new Date();
+  let allocatedPercentage = 0;
+
+  for (const projetWrap of engineer.projets) {
+    const projet = projetWrap.projet;
+    if (!projet) continue;
+    const start = new Date(projet.date_debut_contrat);
+    const end = new Date(projet.date_fin_contrat);
+
+    if (today >= start && today <= end) {
+      allocatedPercentage += (projet.charge ?? 0.5) * 100;
+    }
+  }
+
+  return Math.max(0, 100 - allocatedPercentage);
+}
+
 // Reste des fonctions inchangées...
 export async function saveClassementAI(classement: any) {
   if (!engineerSupabaseUrl || !engineerSupabaseAnonKey) {

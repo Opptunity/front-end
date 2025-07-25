@@ -10,35 +10,25 @@ import type {
   IngenieurCompetence,
   TacheCompetenceRequise 
 } from "@/lib/types/engineer-ranking";
+import { getEngineersWithRealAvailability } from './supabase-engineer';
 
-// Définir les schemas Zod pour la validation
-const TacheSchema = z.object({
-  nom: z.string(),
-  description: z.string(),
-  type: z.string(),
-  complexite: z.number().min(1).max(5),
-  peut_commencer_immediatement: z.boolean(),
-  dependances: z.array(z.string()),
-  competences_cles: z.array(z.string()),
-  estimation_jours: z.number(),
-  assignable_en_parallele: z.boolean().default(true)
-});
+function validateRankingResponse(response: any, expectedEngineers: any[]) {
+  if (!response?.rankings || !Array.isArray(response.rankings)) return false;
+  if (response.rankings.length !== expectedEngineers.length) return false;
 
-const WorkstreamSchema = z.object({
-  nom_workstream: z.string(),
-  peut_demarrer_jour_1: z.boolean(),
-  equipe_recommandee: z.number(),
-  description_workstream: z.string(),
-  taches_simultanees: z.array(TacheSchema)
-});
+  const valid = response.rankings.every((ranking: any) => {
+    const engineerExists = expectedEngineers.some(eng => eng.id === ranking.ingenieur_id);
+    return engineerExists &&
+      typeof ranking.score_compatibilite === 'number' &&
+      ranking.score_compatibilite >= 0 &&
+      ranking.score_compatibilite <= 100 &&
+      typeof ranking.rang === 'number' &&
+      ranking.rang >= 1 &&
+      ranking.rang <= expectedEngineers.length;
+  });
 
-const ProjectDecompositionSchema = z.object({
-  workstreams_paralleles: z.array(WorkstreamSchema),
-  synchronisation_points: z.array(z.object({
-    jour: z.number(),
-    description: z.string()
-  })).optional()
-});
+  return valid;
+}
 
 export class EngineerRankingAI {
   private model;
@@ -381,105 +371,142 @@ Response in English, practical and actionable format.
       };
 
       const getProjectDecompositionPrompt = (projectDescription: string) => `
-You are an expert in agile project management and software engineering with 15 years of experience.
-Your role is to decompose complex projects into EXACTLY 3-5 parallel workstreams that can all start simultaneously.
+You are an expert technical architect with 15+ years of experience in agile software delivery.
+Your task is to decompose complex projects into parallel workstreams with NO blocking dependencies.
+
+## STRICT EXECUTION FRAMEWORK
+
+1. INPUT ANALYSIS PHASE:
+   - Read the PROJECT DESCRIPTION thoroughly
+   - Identify core functional and technical domains
+   - Map to approved workstream categories
+
+2. WORKSTREAM DESIGN PHASE:
+   - Create EXACTLY 3-5 parallel workstreams
+   - Each must be independently executable
+   - Define clear interface contracts between streams
+
+3. TASK BREAKDOWN PHASE:
+   - Decompose each workstream into 1-3 concrete tasks
+   - Assign specific technologies from approved list
+   - Calculate realistic time estimates
 
 PROJECT DESCRIPTION:
 ${projectDescription}
 
-## STRICT DECOMPOSITION RULES
+## APPROVED WORKSTREAM TEMPLATES (CHOOSE 3-5)
 
-1. WORKSTREAM SELECTION (CHOOSE EXACTLY 3-5 FROM THESE OPTIONS):
-   - Frontend Development (React/Angular/Vue)
-   - Backend API Development (Node.js/Java/Python)
-   - Mobile Development (React Native/Flutter)
-   - DevOps/Cloud Infrastructure (AWS/Azure/GCP)
-   - Database/Data Engineering (SQL/NoSQL/ETL)
-   - Authentication/Security Team
-   - UI/UX Design System
-   - Payment/Order Processing
-   - Admin/Management Interface
-   - Analytics/Reporting Module
+1. FRONTEND WORKSTREAM TEMPLATE:
+   - Name: "Frontend Development Team"
+   - Technologies: React, Angular, Vue, TypeScript, Redux, CSS/SCSS
+   - Team Size: 2
+   - Task Types: UI Components, State Management, API Integration
 
-2. TECHNOLOGIES (USE THESE EXACT TERMS):
-   - Frontend: React, Angular, Vue, TypeScript, Redux, CSS/SCSS
-   - Backend: Node.js, Express, Spring Boot, Django, Flask, .NET Core
-   - Mobile: React Native, Flutter, Swift, Kotlin
-   - DevOps: AWS, Azure, Docker, Kubernetes, CI/CD
-   - Database: PostgreSQL, MongoDB, Firebase, MySQL
+2. BACKEND WORKSTREAM TEMPLATE:
+   - Name: "Backend API Team" 
+   - Technologies: Node.js, Express, Spring Boot, Django, Flask, .NET Core
+   - Team Size: 2
+   - Task Types: API Development, Database Integration, Authentication
 
-3. TEAM SIZING (FIXED OPTIONS):
-   - Solo developer: 1
-   - Small team: 2
-   - Medium team: 3
-   - Only use 1-2 for each workstream
+3. MOBILE WORKSTREAM TEMPLATE:
+   - Name: "Mobile Development Team"
+   - Technologies: React Native, Flutter, Swift, Kotlin
+   - Team Size: 2
+   - Task Types: Cross-Platform UI, Native Modules, Offline Support
 
-4. TASK COMPLEXITY SCALE (1-5 ONLY):
-   1 = Trivial (1-2 days)
-   2 = Simple (3-5 days)
-   3 = Moderate (1 week)
-   4 = Complex (2 weeks)
-   5 = Very Complex (3+ weeks)
+4. DEVOPS WORKSTREAM TEMPLATE:
+   - Name: "Cloud Infrastructure Team"
+   - Technologies: AWS, Azure, Docker, Kubernetes, CI/CD
+   - Team Size: 1-2
+   - Task Types: Environment Setup, Deployment Pipelines, Monitoring
 
-## MANDATORY STRUCTURE
+5. DATA WORKSTREAM TEMPLATE:
+   - Name: "Data Engineering Team"
+   - Technologies: PostgreSQL, MongoDB, Firebase, MySQL
+   - Team Size: 1-2
+   - Task Types: Database Design, ETL Pipelines, Analytics
+
+## MANDATORY OUTPUT STRUCTURE
 
 {
+  "project_analysis_summary": "[50-word max technical analysis of project needs]",
   "workstreams_paralleles": [
     {
-      "nom_workstream": "[EXACTLY ONE OF THE WORKSTREAM SELECTION OPTIONS]",
+      "nom_workstream": "[EXACT MATCH TO APPROVED TEMPLATE NAME]",
       "peut_demarrer_jour_1": true,
       "equipe_recommandee": [1 OR 2],
-      "description_workstream": "[CONCISE DESCRIPTION USING TECHNOLOGIES FROM APPROVED LIST]",
+      "description_workstream": "[CONCISE DESCRIPTION USING APPROVED TECHNOLOGIES]",
+      "interface_contracts": [
+        {
+          "with_workstream": "[OTHER WORKSTREAM NAME]",
+          "contract_type": "API|Data|Event|UI",
+          "mockable": true,
+          "description": "[SPECIFIC INTERFACE DETAILS]"
+        }
+      ],
       "taches_simultanees": [
         {
-          "nom": "[SPECIFIC TASK NAME]",
+          "nom": "[STANDARDIZED TASK NAME FROM TEMPLATE]",
           "description": "[DETAILED DESCRIPTION USING APPROVED TECHNOLOGIES]",
-          "type": "[frontend|backend|mobile|devops|database|other]",
-          "complexite": [1-5],
+          "type": "[frontend|backend|mobile|devops|database]",
+          "complexite": [1-5 SCALE BELOW],
           "peut_commencer_immediatement": true,
           "dependances": [],
-          "competences_cles": ["ONLY FROM APPROVED TECHNOLOGIES LIST"],
-          "estimation_jours": [WHOLE NUMBER BETWEEN 1-30],
-          "assignable_en_parallele": true
+          "competences_cles": ["ONLY FROM APPROVED LIST"],
+          "estimation_jours": [WHOLE NUMBER 1-30],
+          "assignable_en_parallele": true,
+          "deliverables": ["LIST OF 2-3 CONCRETE OUTPUTS"]
         }
-        // 1-3 tasks per workstream
       ]
     }
-    // EXACTLY 3-5 workstreams
   ],
   "synchronisation_points": [
     {
-      "jour": [7, 14, 21, OR 28],
-      "description": "[SPECIFIC INTEGRATION POINT]"
+      "jour": [7,14,21,28],
+      "type": "Integration|API Contract|E2E Testing",
+      "participating_workstreams": ["LIST OF WORKSTREAMS"],
+      "artifacts_required": ["SPECIFIC DELIVERABLES NEEDED"]
     }
-    // 1-3 sync points
   ]
 }
 
-## ABSOLUTE CONSTRAINTS
+## COMPLEXITY SCALE DEFINITION
 
-1. ALL workstreams MUST:
-   - Start on day 1 ("peut_demarrer_jour_1": true)
-   - Have 1-3 tasks
-   - Use only approved technologies
-   - Have empty dependencies array
+1 = Trivial (1-2 days) - Simple CRUD, static pages
+2 = Simple (3-5 days) - Basic workflows, simple integrations  
+3 = Moderate (1 week) - Multi-step processes, moderate business logic
+4 = Complex (2 weeks) - Distributed systems, complex algorithms
+5 = Very Complex (3+ weeks) - AI/ML, real-time systems, legacy integration
 
-2. NO variations allowed in:
-   - Field names (use exact JSON keys shown)
-   - Boolean values (all true/false as specified)
-   - Array structures (never null, always empty array if no items)
+## VALIDATION RULES
 
-3. OUTPUT CONTROL:
-   - Return ONLY the JSON
+1. STRUCTURAL VALIDATION:
+   - Exactly 3-5 workstreams
+   - Each workstream has 1-3 tasks
+   - All tasks have empty dependencies array
+   - All technologies from approved lists
+
+2. TECHNICAL VALIDATION:
+   - No shared state between workstreams
+   - All interfaces mockable
+   - No circular dependencies
+   - Clear synchronization points
+
+3. FORMAT VALIDATION:
    - No markdown formatting
    - No explanatory text
-   - No comments in JSON
    - No trailing commas
+   - Exact field names as specified
 
-EXAMPLE OUTPUT FOR REFERENCE:
+EXAMPLE OUTPUT:
 ${JSON.stringify(exampleOutput, null, 2)}
 
-NOW PROCESS THIS PROJECT DESCRIPTION AND RETURN THE EXACT REQUIRED FORMAT:
+YOUR TASK:
+1. Analyze the PROJECT DESCRIPTION
+2. Select 3-5 APPROVED WORKSTREAM TEMPLATES
+3. Populate the MANDATORY OUTPUT STRUCTURE
+4. Validate against all VALIDATION RULES
+5. Return ONLY the JSON object
 `;
 
       // Use the new prompt
