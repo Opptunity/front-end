@@ -221,7 +221,7 @@ CRITICAL:
       console.log('AI returned rankings count:', parsedResponse.rankings?.length || 0);
       
       if (parsedResponse.rankings && Array.isArray(parsedResponse.rankings)) {
-        console.log('AI returned engineer IDs:', parsedResponse.rankings.map(r => r.ingenieur_id));
+        console.log('AI returned engineer IDs:', parsedResponse.rankings.map((r: any) => r.ingenieur_id));
         console.log('Expected engineer IDs:', engineers.map(e => e.ingenieur_id));
       }
       
@@ -302,26 +302,7 @@ Response in English, practical and actionable format.
     try {
       console.log("Decomposing project into parallel workstreams...");
 
-      const prompt = `
-You are an expert in agile project management and software engineering.
-Your role is to decompose a complex project into PARALLEL WORKSTREAMS that can start SIMULTANEOUSLY.
-
-PROJECT DESCRIPTION:
-${projectDescription}
-
-CRITICAL INSTRUCTIONS:
-1. Create 3-5 WORKSTREAMS that can all start on DAY 1
-2. Each workstream represents a distinct team working in parallel
-3. NO blocking dependencies between workstreams
-4. Use interface contracts and mocked APIs for independence
-
-PARALLELIZATION STRATEGIES:
-- Separate by TECHNICAL LAYERS (Frontend/Backend/Mobile/DevOps)
-- Separate by FUNCTIONAL MODULES (User/Product/Payment/Admin)
-- Create minimalist API contracts for independence
-
-MANDATORY response format (JSON only):
-{
+      const exampleOutput = {
   "workstreams_paralleles": [
     {
       "nom_workstream": "Frontend Development Team",
@@ -396,16 +377,113 @@ MANDATORY response format (JSON only):
       "jour": 14,
       "description": "Component integration and integration testing"
     }
+        ]
+      };
+
+      const getProjectDecompositionPrompt = (projectDescription: string) => `
+You are an expert in agile project management and software engineering with 15 years of experience.
+Your role is to decompose complex projects into EXACTLY 3-5 parallel workstreams that can all start simultaneously.
+
+PROJECT DESCRIPTION:
+${projectDescription}
+
+## STRICT DECOMPOSITION RULES
+
+1. WORKSTREAM SELECTION (CHOOSE EXACTLY 3-5 FROM THESE OPTIONS):
+   - Frontend Development (React/Angular/Vue)
+   - Backend API Development (Node.js/Java/Python)
+   - Mobile Development (React Native/Flutter)
+   - DevOps/Cloud Infrastructure (AWS/Azure/GCP)
+   - Database/Data Engineering (SQL/NoSQL/ETL)
+   - Authentication/Security Team
+   - UI/UX Design System
+   - Payment/Order Processing
+   - Admin/Management Interface
+   - Analytics/Reporting Module
+
+2. TECHNOLOGIES (USE THESE EXACT TERMS):
+   - Frontend: React, Angular, Vue, TypeScript, Redux, CSS/SCSS
+   - Backend: Node.js, Express, Spring Boot, Django, Flask, .NET Core
+   - Mobile: React Native, Flutter, Swift, Kotlin
+   - DevOps: AWS, Azure, Docker, Kubernetes, CI/CD
+   - Database: PostgreSQL, MongoDB, Firebase, MySQL
+
+3. TEAM SIZING (FIXED OPTIONS):
+   - Solo developer: 1
+   - Small team: 2
+   - Medium team: 3
+   - Only use 1-2 for each workstream
+
+4. TASK COMPLEXITY SCALE (1-5 ONLY):
+   1 = Trivial (1-2 days)
+   2 = Simple (3-5 days)
+   3 = Moderate (1 week)
+   4 = Complex (2 weeks)
+   5 = Very Complex (3+ weeks)
+
+## MANDATORY STRUCTURE
+
+{
+  "workstreams_paralleles": [
+    {
+      "nom_workstream": "[EXACTLY ONE OF THE WORKSTREAM SELECTION OPTIONS]",
+      "peut_demarrer_jour_1": true,
+      "equipe_recommandee": [1 OR 2],
+      "description_workstream": "[CONCISE DESCRIPTION USING TECHNOLOGIES FROM APPROVED LIST]",
+      "taches_simultanees": [
+        {
+          "nom": "[SPECIFIC TASK NAME]",
+          "description": "[DETAILED DESCRIPTION USING APPROVED TECHNOLOGIES]",
+          "type": "[frontend|backend|mobile|devops|database|other]",
+          "complexite": [1-5],
+          "peut_commencer_immediatement": true,
+          "dependances": [],
+          "competences_cles": ["ONLY FROM APPROVED TECHNOLOGIES LIST"],
+          "estimation_jours": [WHOLE NUMBER BETWEEN 1-30],
+          "assignable_en_parallele": true
+        }
+        // 1-3 tasks per workstream
+      ]
+    }
+    // EXACTLY 3-5 workstreams
+  ],
+  "synchronisation_points": [
+    {
+      "jour": [7, 14, 21, OR 28],
+      "description": "[SPECIFIC INTEGRATION POINT]"
+    }
+    // 1-3 sync points
   ]
 }
 
-ABSOLUTE RULES:
-- ALL workstreams MUST have "peut_demarrer_jour_1": true
-- NO task should depend on the completion of another
-- Each task must be detailed enough for engineer ranking
-- Use specific technologies and skills
-- Return ONLY the JSON without markdown formatting or additional explanations
+## ABSOLUTE CONSTRAINTS
+
+1. ALL workstreams MUST:
+   - Start on day 1 ("peut_demarrer_jour_1": true)
+   - Have 1-3 tasks
+   - Use only approved technologies
+   - Have empty dependencies array
+
+2. NO variations allowed in:
+   - Field names (use exact JSON keys shown)
+   - Boolean values (all true/false as specified)
+   - Array structures (never null, always empty array if no items)
+
+3. OUTPUT CONTROL:
+   - Return ONLY the JSON
+   - No markdown formatting
+   - No explanatory text
+   - No comments in JSON
+   - No trailing commas
+
+EXAMPLE OUTPUT FOR REFERENCE:
+${JSON.stringify(exampleOutput, null, 2)}
+
+NOW PROCESS THIS PROJECT DESCRIPTION AND RETURN THE EXACT REQUIRED FORMAT:
 `;
+
+      // Use the new prompt
+      const prompt = getProjectDecompositionPrompt(projectDescription);
 
       const { text } = await generateText({
         model: this.model,

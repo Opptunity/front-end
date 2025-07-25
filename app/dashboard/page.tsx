@@ -571,7 +571,7 @@ export default function DashboardPage() {
                 </motion.div>
 
                 {/* Engineer Ranking Button - NOUVEAU */}
-                {/*
+                
                 <motion.div 
                   whileHover={{ y: -5 }}
                   transition={{ type: "spring", stiffness: 300 }}
@@ -603,7 +603,7 @@ export default function DashboardPage() {
                 </motion.div>
 
                 {/* Engineer Onboarding Button - NEW */}
-                {/*
+                
                 <motion.div 
                   whileHover={{ y: -5 }}
                   transition={{ type: "spring", stiffness: 300 }}
@@ -635,7 +635,7 @@ export default function DashboardPage() {
                 </motion.div>
                 
                 {/* Skill Assessment Button */}
-                {/*
+                
                 <motion.div 
                   whileHover={{ y: -5 }}
                   transition={{ type: "spring", stiffness: 300 }}
@@ -666,7 +666,7 @@ export default function DashboardPage() {
                 </motion.div>
 
                 {/* CV Skills Assessment Button - NEW */}
-                {/*
+                
                 <motion.div 
                   whileHover={{ y: -5 }}
                   transition={{ type: "spring", stiffness: 300 }}
@@ -697,7 +697,7 @@ export default function DashboardPage() {
                 </motion.div>
 
                 {/* IT Trends Explorer Button - NEW */}
-                {/*
+                
                 <motion.div 
                   whileHover={{ y: -5 }}
                   transition={{ type: "spring", stiffness: 300 }}
