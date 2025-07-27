@@ -135,5 +135,6 @@ export const config = {
     '/api/auth/:path*',
     '/login',
     '/dashboard',
+    '/delivery-manager/:path*',
   ],
 }; 

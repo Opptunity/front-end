@@ -125,6 +125,10 @@ export async function assessSkills(cvText: string, userId?: string) {
         
         Format your response as a valid JSON object with the following structure:
         {
+          "name": "Extract the candidate's full name from the CV",
+          "email": "Extract email address if present",
+          "phone": "Extract phone number if present", 
+          "location": "Extract current location/city if mentioned",
           "summary": "...",
           "technicalSkills": [
             {
@@ -137,6 +141,8 @@ export async function assessSkills(cvText: string, userId?: string) {
           "strengths": ["..."],
           "improvementAreas": ["..."],
           "recommendations": ["..."],
+          "yearsOfExperience": "Extract or estimate total years of professional experience as a number",
+          "experienceLevel": "Classify as 'junior', 'mid', 'senior', or 'lead' based on experience",
           "industryAnalysis": {
             "industry": "...",
             "alignment": "...",

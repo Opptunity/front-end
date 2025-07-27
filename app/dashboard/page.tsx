@@ -341,20 +341,24 @@ export default function DashboardPage() {
                       </div>
                       
                       <div className="space-y-3">
-                        <button className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center">
-                          <span>Create New Ticket</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2">
-                            <path d="M5 12h14"></path>
-                            <path d="M12 5v14"></path>
-                          </svg>
-                        </button>
-                        <button className="w-full border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center">
-                          <span>View My Tickets</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                            <circle cx="12" cy="12" r="3"></circle>
-                          </svg>
-                        </button>
+                        <Link href="/create-ticket" className="block">
+                          <button className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center">
+                            <span>Create New Ticket</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2">
+                              <path d="M5 12h14"></path>
+                              <path d="M12 5v14"></path>
+                            </svg>
+                          </button>
+                        </Link>
+                        <Link href="/my-tickets" className="block">
+                          <button className="w-full border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center">
+                            <span>View My Tickets</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                              <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                          </button>
+                        </Link>
                       </div>
                     </div>
                   </motion.div>
@@ -408,24 +412,28 @@ export default function DashboardPage() {
                       </div>
                       
                       <div className="space-y-3">
-                        <button className="w-full bg-gradient-to-r from-purple-600 to-violet-600 text-white hover:from-purple-700 hover:to-violet-700 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center">
-                          <span>View Ticket Queue</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2">
-                            <path d="M3 3h18v18H3z"></path>
-                            <path d="M8 8h8"></path>
-                            <path d="M8 12h8"></path>
-                            <path d="M8 16h5"></path>
-                          </svg>
-                        </button>
-                        <button className="w-full border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center">
-                          <span>Profiler Directory</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2">
-                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="8.5" cy="7" r="4"></circle>
-                            <path d="M20 8v6"></path>
-                            <path d="M23 11h-6"></path>
-                          </svg>
-                        </button>
+                        <Link href="/delivery-manager/tickets" className="block">
+                          <button className="w-full bg-gradient-to-r from-purple-600 to-violet-600 text-white hover:from-purple-700 hover:to-violet-700 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center">
+                            <span>View Ticket Queue</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2">
+                              <path d="M3 3h18v18H3z"></path>
+                              <path d="M8 8h8"></path>
+                              <path d="M8 12h8"></path>
+                              <path d="M8 16h5"></path>
+                            </svg>
+                          </button>
+                        </Link>
+                        <Link href="/delivery-manager/profilers" className="block">
+                          <button className="w-full border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center">
+                            <span>Profiler Directory</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2">
+                              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                              <circle cx="8.5" cy="7" r="4"></circle>
+                              <path d="M20 8v6"></path>
+                              <path d="M23 11h-6"></path>
+                            </svg>
+                          </button>
+                        </Link>
                       </div>
                     </div>
                   </motion.div>

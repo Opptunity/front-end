@@ -135,6 +135,132 @@ CREATE INDEX IF NOT EXISTS user_assessment_details_assessment_id_idx ON public."
 CREATE INDEX IF NOT EXISTS user_assessment_details_user_id_idx ON public."UserAssessmentDetails" ("userId"); 
 
 -- ================================
+-- TICKETS TABLE FOR SINGLE STAFFING
+-- ================================
+
+-- Create tickets table for the single staffing workflow
+CREATE TABLE IF NOT EXISTS public.tickets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ticket_number TEXT UNIQUE NOT NULL,
+  created_by TEXT NOT NULL,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'in-review', 'matched', 'placed', 'completed', 'cancelled')),
+  priority TEXT CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+  
+  -- Client Information
+  client_name TEXT NOT NULL,
+  client_company TEXT NOT NULL,
+  client_email TEXT NOT NULL,
+  client_phone TEXT,
+  
+  -- Position Details
+  position_title TEXT NOT NULL,
+  department TEXT,
+  seniority TEXT,
+  contract_type TEXT,
+  duration TEXT,
+  start_date DATE,
+  work_location TEXT,
+  work_arrangement TEXT,
+  
+  -- Requirements (JSON fields for arrays and complex data)
+  required_skills JSONB,
+  preferred_skills JSONB,
+  experience TEXT,
+  education TEXT,
+  certifications TEXT,
+  
+  -- Project Details
+  project_description TEXT,
+  responsibilities TEXT,
+  
+  -- Budget & Terms
+  budget_min DECIMAL,
+  budget_max DECIMAL,
+  currency TEXT DEFAULT 'USD',
+  rate_type TEXT,
+  
+  -- Additional Information
+  urgency TEXT,
+  special_requirements TEXT,
+  notes TEXT,
+  
+  -- Assignment tracking
+  assigned_to TEXT, -- Delivery Manager assigned to this ticket
+  
+  -- Source tracking (for JIRA integration)
+  source TEXT DEFAULT 'local' CHECK (source IN ('local', 'jira')),
+  jira_key TEXT, -- JIRA issue key (e.g., 'PROJ-123')
+  jira_project TEXT, -- JIRA project key (e.g., 'PROJ')
+  jira_issue_id TEXT, -- JIRA internal issue ID
+  jira_url TEXT, -- Direct link to JIRA issue
+  jira_last_sync TIMESTAMP WITH TIME ZONE, -- When this ticket was last synced from JIRA
+  
+  -- Extended status mapping for better JIRA compatibility
+  jira_status TEXT, -- Original JIRA status name
+  jira_priority TEXT, -- Original JIRA priority name
+  
+  -- End date for contract tracking
+  end_date DATE,
+  
+  -- Additional metadata
+  contact_name TEXT, -- Alternative to client_name for backward compatibility
+  contact_email TEXT, -- Alternative to client_email for backward compatibility
+  contact_phone TEXT, -- Alternative to client_phone for backward compatibility
+  company_name TEXT, -- Alternative to client_company for backward compatibility
+  location TEXT, -- Alternative to work_location for backward compatibility
+  
+  -- Timestamps
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Add indexes for JIRA integration
+CREATE UNIQUE INDEX IF NOT EXISTS tickets_jira_key_idx ON public.tickets (jira_key) WHERE jira_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS tickets_source_idx ON public.tickets (source);
+CREATE INDEX IF NOT EXISTS tickets_jira_project_idx ON public.tickets (jira_project) WHERE jira_project IS NOT NULL;
+CREATE INDEX IF NOT EXISTS tickets_status_idx ON public.tickets (status);
+CREATE INDEX IF NOT EXISTS tickets_priority_idx ON public.tickets (priority);
+CREATE INDEX IF NOT EXISTS tickets_created_by_idx ON public.tickets (created_by);
+
+-- Add constraint to ensure JIRA tickets have required JIRA fields
+ALTER TABLE public.tickets ADD CONSTRAINT check_jira_fields 
+  CHECK (
+    (source = 'local') OR 
+    (source = 'jira' AND jira_key IS NOT NULL AND jira_project IS NOT NULL)
+);
+
+-- Enable Row Level Security for tickets
+ALTER TABLE public.tickets ENABLE ROW LEVEL SECURITY;
+
+-- Create policy to allow reading any ticket
+CREATE POLICY "Allow reading any ticket" 
+ON public.tickets FOR SELECT 
+USING (true);
+
+-- Create policy to allow users to create their own tickets
+CREATE POLICY "Allow users to create tickets" 
+ON public.tickets FOR INSERT 
+WITH CHECK (created_by = auth.email() OR auth.role() = 'service_role');
+
+-- Create policy to allow users to update their own tickets
+CREATE POLICY "Allow users to update their own tickets" 
+ON public.tickets FOR UPDATE 
+USING (created_by = auth.email() OR auth.role() = 'service_role');
+
+-- Create policy to allow service role full access
+CREATE POLICY "Allow service role full access to tickets" 
+ON public.tickets
+USING (auth.role() = 'service_role');
+
+-- Create indexes for tickets table
+CREATE INDEX IF NOT EXISTS tickets_created_by_idx ON public.tickets (created_by);
+CREATE INDEX IF NOT EXISTS tickets_status_idx ON public.tickets (status);
+CREATE INDEX IF NOT EXISTS tickets_priority_idx ON public.tickets (priority);
+CREATE INDEX IF NOT EXISTS tickets_ticket_number_idx ON public.tickets (ticket_number);
+CREATE INDEX IF NOT EXISTS tickets_assigned_to_idx ON public.tickets (assigned_to);
+CREATE INDEX IF NOT EXISTS tickets_created_at_idx ON public.tickets (created_at);
+
+-- ================================
 -- ENGINEER-TREND INTEGRATION TABLES
 -- ================================
 
@@ -526,5 +652,186 @@ BEGIN
     AND (mjd.location = location_param OR location_param = 'Global')
   ORDER BY mjd.last_updated DESC
   LIMIT 1;
+END;
+$$ LANGUAGE plpgsql; 
+
+-- Delivery Manager Portal Tables
+
+-- Create profilers table for candidate database
+CREATE TABLE IF NOT EXISTS public.profilers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT UNIQUE NOT NULL,
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL,
+  phone TEXT,
+  location TEXT,
+  availability_status TEXT DEFAULT 'available' CHECK (availability_status IN ('available', 'busy', 'unavailable')),
+  preferred_work_arrangement TEXT[] DEFAULT '{}',
+  skills JSONB DEFAULT '[]',
+  experience_level TEXT,
+  years_of_experience INTEGER,
+  hourly_rate DECIMAL(10,2),
+  daily_rate DECIMAL(10,2),
+  currency TEXT DEFAULT 'USD',
+  bio TEXT,
+  linkedin_url TEXT,
+  portfolio_url TEXT,
+  resume_url TEXT,
+  certifications JSONB DEFAULT '[]',
+  languages JSONB DEFAULT '[]',
+  preferred_industries JSONB DEFAULT '[]',
+  contract_types TEXT[] DEFAULT '{}',
+  notice_period_days INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create placements table for tracking ticket-to-profiler assignments
+CREATE TABLE IF NOT EXISTS public.placements (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ticket_id UUID NOT NULL REFERENCES public.tickets(id) ON DELETE CASCADE,
+  profiler_id UUID NOT NULL REFERENCES public.profilers(id) ON DELETE CASCADE,
+  assigned_by UUID REFERENCES public.users(id),
+  status TEXT DEFAULT 'proposed' CHECK (status IN ('proposed', 'interviewing', 'accepted', 'rejected', 'placed', 'completed', 'cancelled')),
+  match_score DECIMAL(3,2), -- 0.00 to 1.00
+  notes TEXT,
+  interview_scheduled_at TIMESTAMP WITH TIME ZONE,
+  start_date DATE,
+  end_date DATE,
+  placement_fee DECIMAL(10,2),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create availability_calendar table for detailed availability tracking
+CREATE TABLE IF NOT EXISTS public.availability_calendar (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  profiler_id UUID NOT NULL REFERENCES public.profilers(id) ON DELETE CASCADE,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  status TEXT DEFAULT 'available' CHECK (status IN ('available', 'busy', 'blocked', 'vacation')),
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create placement_history table for tracking placement outcomes
+CREATE TABLE IF NOT EXISTS public.placement_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  placement_id UUID NOT NULL REFERENCES public.placements(id) ON DELETE CASCADE,
+  status_changed_to TEXT NOT NULL,
+  changed_by UUID REFERENCES public.users(id),
+  reason TEXT,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable Row Level Security
+ALTER TABLE public.profilers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.placements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.availability_calendar ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.placement_history ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for profilers
+CREATE POLICY "Allow reading profilers" 
+ON public.profilers FOR SELECT 
+USING (true);
+
+CREATE POLICY "Allow service role to manage profilers" 
+ON public.profilers FOR ALL
+USING (auth.role() = 'service_role');
+
+-- RLS Policies for placements
+CREATE POLICY "Allow reading placements" 
+ON public.placements FOR SELECT 
+USING (true);
+
+CREATE POLICY "Allow service role to manage placements" 
+ON public.placements FOR ALL
+USING (auth.role() = 'service_role');
+
+-- RLS Policies for availability_calendar
+CREATE POLICY "Allow reading availability calendar" 
+ON public.availability_calendar FOR SELECT 
+USING (true);
+
+CREATE POLICY "Allow service role to manage availability calendar" 
+ON public.availability_calendar FOR ALL
+USING (auth.role() = 'service_role');
+
+-- RLS Policies for placement_history
+CREATE POLICY "Allow reading placement history" 
+ON public.placement_history FOR SELECT 
+USING (true);
+
+CREATE POLICY "Allow service role to manage placement history" 
+ON public.placement_history FOR ALL
+USING (auth.role() = 'service_role');
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS profilers_email_idx ON public.profilers (email);
+CREATE INDEX IF NOT EXISTS profilers_availability_status_idx ON public.profilers (availability_status);
+CREATE INDEX IF NOT EXISTS profilers_experience_level_idx ON public.profilers (experience_level);
+CREATE INDEX IF NOT EXISTS profilers_location_idx ON public.profilers (location);
+CREATE INDEX IF NOT EXISTS profilers_skills_idx ON public.profilers USING GIN (skills);
+
+CREATE INDEX IF NOT EXISTS placements_ticket_id_idx ON public.placements (ticket_id);
+CREATE INDEX IF NOT EXISTS placements_profiler_id_idx ON public.placements (profiler_id);
+CREATE INDEX IF NOT EXISTS placements_status_idx ON public.placements (status);
+CREATE INDEX IF NOT EXISTS placements_assigned_by_idx ON public.placements (assigned_by);
+CREATE INDEX IF NOT EXISTS placements_match_score_idx ON public.placements (match_score DESC);
+
+CREATE INDEX IF NOT EXISTS availability_profiler_id_idx ON public.availability_calendar (profiler_id);
+CREATE INDEX IF NOT EXISTS availability_date_range_idx ON public.availability_calendar (start_date, end_date);
+CREATE INDEX IF NOT EXISTS availability_status_idx ON public.availability_calendar (status);
+
+CREATE INDEX IF NOT EXISTS placement_history_placement_id_idx ON public.placement_history (placement_id);
+CREATE INDEX IF NOT EXISTS placement_history_changed_by_idx ON public.placement_history (changed_by);
+CREATE INDEX IF NOT EXISTS placement_history_created_at_idx ON public.placement_history (created_at);
+
+-- Helper function to calculate match score between profiler skills and ticket requirements
+CREATE OR REPLACE FUNCTION calculate_profiler_match_score(
+  profiler_skills JSONB,
+  required_skills TEXT[],
+  preferred_skills TEXT[]
+) RETURNS DECIMAL(3,2) AS $$
+DECLARE
+  total_requirements INTEGER;
+  matched_requirements INTEGER;
+  required_match INTEGER := 0;
+  preferred_match INTEGER := 0;
+  skill TEXT;
+  profiler_skill_names TEXT[];
+BEGIN
+  -- Extract skill names from profiler skills JSONB
+  SELECT array_agg(skill_data->>'name') INTO profiler_skill_names
+  FROM jsonb_array_elements(profiler_skills) AS skill_data;
+  
+  -- Count matches in required skills
+  FOREACH skill IN ARRAY required_skills LOOP
+    IF skill = ANY(profiler_skill_names) THEN
+      required_match := required_match + 1;
+    END IF;
+  END LOOP;
+  
+  -- Count matches in preferred skills
+  FOREACH skill IN ARRAY preferred_skills LOOP
+    IF skill = ANY(profiler_skill_names) THEN
+      preferred_match := preferred_match + 1;
+    END IF;
+  END LOOP;
+  
+  total_requirements := array_length(required_skills, 1) + array_length(preferred_skills, 1);
+  matched_requirements := required_match + preferred_match;
+  
+  -- Weight required skills more heavily (70% for required, 30% for preferred)
+  IF total_requirements > 0 THEN
+    RETURN LEAST(1.0, 
+      (required_match::DECIMAL / GREATEST(array_length(required_skills, 1), 1) * 0.7) +
+      (preferred_match::DECIMAL / GREATEST(array_length(preferred_skills, 1), 1) * 0.3)
+    );
+  ELSE
+    RETURN 0.0;
+  END IF;
 END;
 $$ LANGUAGE plpgsql; 
