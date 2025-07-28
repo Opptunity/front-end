@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     
     console.log("Starting analysis for:", body);
-
+  
     // Verify connection to Engineer database
     const connectionOk = await testConnection();
     if (!connectionOk) {
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
         { status: 503 }
       );
     }
-
+  
     // Verify that tables exist
     const tablesStatus = await checkTablesExist();
     if (!tablesStatus.ingenieurs) {
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
           }
         };
       });
-
+  
       // Generate summary with enriched engineer data
       const jobMatchingSummary = await rankingAI.generateJobMatchingSummary(
         results.job_analysis, 
@@ -153,10 +153,10 @@ export async function POST(req: NextRequest) {
           })
         }))
       };
-
+    
       const endTime = Date.now();
       const processingTime = (endTime - startTime) / 1000;
-      
+       
       console.log(`Complete project analysis finished in ${processingTime}s`);
 
       return NextResponse.json(enrichedResults);
