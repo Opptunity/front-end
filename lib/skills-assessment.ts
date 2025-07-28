@@ -6,6 +6,19 @@ import { getApiUrl } from "@/utils/api-client"
 // Add a request cache to prevent duplicate API calls
 const assessmentCache = new Map();
 
+// Cache cleanup - limit cache size to prevent memory issues
+const MAX_CACHE_SIZE = 100;
+
+function cleanupCache() {
+  if (assessmentCache.size >= MAX_CACHE_SIZE) {
+    // Remove oldest entries (first 20% of cache)
+    const entriesToRemove = Math.floor(MAX_CACHE_SIZE * 0.2);
+    const keysToRemove = Array.from(assessmentCache.keys()).slice(0, entriesToRemove);
+    keysToRemove.forEach(key => assessmentCache.delete(key));
+    console.log(`Cache cleanup: removed ${entriesToRemove} entries`);
+  }
+}
+
 // Helper function to extract JSON from a string that might contain markdown code blocks
 function extractJsonFromText(text: string): string {
   console.log("Raw AI response:", text.substring(0, 200) + "...") // Log the beginning of the response
@@ -35,12 +48,14 @@ function extractJsonFromText(text: string): string {
 
 export async function assessSkills(cvText: string, userId?: string) {
   try {
-    // Generate a cache key based on the CV text (first 100 chars should be enough to identify)
-    const cacheKey = cvText.substring(0, 100);
+    // Generate a more unique cache key using a hash of the entire CV text plus userId
+    const crypto = require('crypto');
+    const fullContentHash = crypto.createHash('md5').update(cvText + (userId || '')).digest('hex');
+    const cacheKey = fullContentHash;
     
     // Check if we already have a cached result for this text
     if (assessmentCache.has(cacheKey)) {
-      console.log("Using cached assessment result");
+      console.log("Using cached assessment result for key:", cacheKey.substring(0, 8));
       return assessmentCache.get(cacheKey);
     }
     
@@ -110,6 +125,10 @@ export async function assessSkills(cvText: string, userId?: string) {
         
         Format your response as a valid JSON object with the following structure:
         {
+          "name": "Extract the candidate's full name from the CV",
+          "email": "Extract email address if present",
+          "phone": "Extract phone number if present", 
+          "location": "Extract current location/city if mentioned",
           "summary": "...",
           "technicalSkills": [
             {
@@ -122,6 +141,8 @@ export async function assessSkills(cvText: string, userId?: string) {
           "strengths": ["..."],
           "improvementAreas": ["..."],
           "recommendations": ["..."],
+          "yearsOfExperience": "Extract or estimate total years of professional experience as a number",
+          "experienceLevel": "Classify as 'junior', 'mid', 'senior', or 'lead' based on experience",
           "industryAnalysis": {
             "industry": "...",
             "alignment": "...",
@@ -166,8 +187,10 @@ export async function assessSkills(cvText: string, userId?: string) {
         throw new Error("AI returned invalid JSON structure")
       }
       
-      // Cache the result
+      // Cache the result and cleanup if needed
       assessmentCache.set(cacheKey, result);
+      cleanupCache();
+      console.log("Cached new assessment result for key:", cacheKey.substring(0, 8), "Total cache size:", assessmentCache.size);
       
       // Track the backend ID
       let backendAssessmentId = null;
@@ -248,6 +271,12 @@ export async function assessSkills(cvText: string, userId?: string) {
 }
 
 // Create a fallback assessment when AI or parsing fails
+// Export function to clear cache if needed (useful for debugging)
+export function clearAssessmentCache() {
+  assessmentCache.clear();
+  console.log("Assessment cache cleared");
+}
+
 function createFallbackAssessment(cvText: string) {
   console.log("Creating fallback assessment")
 

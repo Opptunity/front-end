@@ -31,7 +31,8 @@ import {
   Loader2,
   Heart,
   X,
-  Calculator
+  Calculator,
+  RotateCcw
 } from 'lucide-react'
 import { MarketIntelligenceClient, getSkillMarketOverview } from '@/lib/market-intelligence-client'
 import { SkillMarketAnalytics, MarketTimingInsights } from '@/lib/types/engineer-ranking'
@@ -126,46 +127,97 @@ export default function ITTrendsExplorer({
   }>>({})
   const [loadingMarketData, setLoadingMarketData] = useState<Record<string, boolean>>({})
 
-  // Fetch trends data
+  // Frontend cache for comprehensive trends
+  const [comprehensiveTrends, setComprehensiveTrends] = useState<ITTrend[]>([])
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0)
+  const [fetchInProgress, setFetchInProgress] = useState(false)
+  
+  // Cache duration: 5 minutes (to allow some frontend caching but still refresh periodically)
+  const FRONTEND_CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+
+  // Fetch comprehensive trends (only when cache is empty or expired)
+  const fetchComprehensiveTrends = async (forceRefresh: boolean = false) => {
+    const now = Date.now()
+    
+    // Return cached data if valid and not forcing refresh
+    if (!forceRefresh && comprehensiveTrends.length > 0 && (now - lastFetchTime) < FRONTEND_CACHE_DURATION) {
+      console.log('Using cached comprehensive trends')
+      return comprehensiveTrends
+    }
+
+    // Don't make multiple concurrent requests
+    if (fetchInProgress) {
+      console.log('Fetch already in progress, waiting...')
+      return comprehensiveTrends
+    }
+
+    try {
+      setFetchInProgress(true)
+      console.log('Fetching comprehensive trends from API...')
+      
+      const params = new URLSearchParams()
+      
+      // Only include personalization if enabled
+      if (personalized && userSkills.length > 0) {
+        params.append('personalize', 'true')
+        params.append('skills', userSkills.join(','))
+        params.append('industry', userIndustry)
+      }
+
+      const response = await fetch(`/api/it-trends?${params}`)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      const allTrends = data.trends || []
+      
+      // Cache the comprehensive trends
+      setComprehensiveTrends(allTrends)
+      setLastFetchTime(now)
+      setCategories(data.categories || [])
+      setLastUpdated(data.lastUpdated || '')
+      
+      console.log(`Cached ${allTrends.length} comprehensive trends`)
+      return allTrends
+      
+    } catch (error) {
+      console.error('Error fetching comprehensive trends:', error)
+      return comprehensiveTrends // Return cached data on error
+    } finally {
+      setFetchInProgress(false)
+    }
+  }
+
+  // Filter trends by category (client-side, instant)
+  const getFilteredTrends = (allTrends: ITTrend[], category: string): ITTrend[] => {
+    if (category === 'all') {
+      return allTrends
+    }
+    
+    const filtered = allTrends.filter(trend => trend.category === category)
+    console.log(`Filtered ${filtered.length} trends for category: ${category}`)
+    return filtered
+  }
+
+  // Initial load: fetch comprehensive trends
   useEffect(() => {
     let isCancelled = false
 
-    const fetchTrends = async () => {
+    const loadTrends = async () => {
+      setIsLoading(true)
       try {
-        setIsLoading(true)
-        const params = new URLSearchParams()
+        const allTrends = await fetchComprehensiveTrends()
         
-        // Always include category filter
-        if (selectedCategory !== 'all') {
-          params.append('category', selectedCategory)
-        }
-        
-        // Only include personalization if enabled AND we're viewing all categories
-        // This prevents AI calls when just filtering by category
-        if (personalized && selectedCategory === 'all' && userSkills.length > 0) {
-          params.append('personalize', 'true')
-          params.append('skills', userSkills.join(','))
-          params.append('industry', userIndustry)
-        }
-
-        const response = await fetch(`/api/it-trends?${params}`)
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-        
-        const data = await response.json()
-        
-        // Only update state if this request hasn't been cancelled
         if (!isCancelled) {
-          setTrends(data.trends || [])
-          setCategories(data.categories || [])
-          setLastUpdated(data.lastUpdated || '')
+          // Filter by selected category
+          const filtered = getFilteredTrends(allTrends, selectedCategory)
+          setTrends(filtered)
         }
       } catch (error) {
         if (!isCancelled) {
-          console.error('Error fetching trends:', error)
-          // Set empty trends on error to prevent showing stale data
+          console.error('Error loading trends:', error)
           setTrends([])
         }
       } finally {
@@ -175,13 +227,21 @@ export default function ITTrendsExplorer({
       }
     }
 
-    fetchTrends()
+    loadTrends()
 
-    // Cleanup function to cancel the request if component unmounts or dependencies change
     return () => {
       isCancelled = true
     }
-  }, [selectedCategory, personalized, userSkills, userIndustry])
+  }, [personalized, userSkills, userIndustry]) // Removed selectedCategory from deps!
+
+  // Handle category changes (client-side filtering, no API call)
+  useEffect(() => {
+    if (comprehensiveTrends.length > 0) {
+      console.log(`Switching to category: ${selectedCategory} (client-side filter)`)
+      const filtered = getFilteredTrends(comprehensiveTrends, selectedCategory)
+      setTrends(filtered)
+    }
+  }, [selectedCategory, comprehensiveTrends])
 
   // Filter trends based on search query
   useEffect(() => {
@@ -218,11 +278,12 @@ export default function ITTrendsExplorer({
   }, [engineerId, showFocusActions])
 
   // Load market intelligence data for visible trends
-  useEffect(() => {
-    if (showMarketIntelligence && filteredTrends.length > 0) {
-      loadMarketIntelligenceForTrends(filteredTrends.slice(0, 10)) // Load for first 10 trends
-    }
-  }, [filteredTrends, showMarketIntelligence])
+  // DISABLED: Causing refresh loops due to missing database tables
+  // useEffect(() => {
+  //   if (showMarketIntelligence && filteredTrends.length > 0) {
+  //     loadMarketIntelligenceForTrends(filteredTrends.slice(0, 10)) // Load for first 10 trends
+  //   }
+  // }, [filteredTrends, showMarketIntelligence])
 
   const loadMarketIntelligenceForTrends = async (trendsToLoad: ITTrend[]) => {
     for (const trend of trendsToLoad) {
@@ -337,6 +398,21 @@ export default function ITTrendsExplorer({
     setEngineerFocusedTrends(prev => prev.filter(id => id !== trendId))
   }
 
+  // Manual refresh handler
+  const handleRefresh = async () => {
+    console.log('🔄 Manual refresh triggered')
+    setIsLoading(true)
+    try {
+      const allTrends = await fetchComprehensiveTrends(true) // Force refresh
+      const filtered = getFilteredTrends(allTrends, selectedCategory)
+      setTrends(filtered)
+    } catch (error) {
+      console.error('Error during manual refresh:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const TrendCard = ({ trend }: { trend: ITTrend }) => {
     const popularityInfo = popularityConfig[trend.popularity]
     const relevanceInfo = relevanceConfig[trend.relevance]
@@ -403,13 +479,6 @@ export default function ITTrendsExplorer({
                       }`}
                     >
                       {trendMarketData.timing.learning_window_urgency} urgency
-                    </Badge>
-                  )}
-                  
-                  {isLoadingMarketData && (
-                    <Badge variant="outline" className="text-xs">
-                      <Loader2 className="h-2 w-2 mr-1 animate-spin" />
-                      Loading...
                     </Badge>
                   )}
                 </div>
@@ -497,8 +566,8 @@ export default function ITTrendsExplorer({
                   </div>
                 )}
 
-                {/* ROI Calculation Button */}
-                {engineerId && !trendMarketData.roi_calculated && (
+                {/* ROI Calculation Button - DISABLED due to missing database tables */}
+                {/* {engineerId && !trendMarketData.roi_calculated && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -516,7 +585,7 @@ export default function ITTrendsExplorer({
                     )}
                     Calculate ROI
                   </Button>
-                )}
+                )} */}
               </div>
             )}
 
@@ -663,6 +732,15 @@ export default function ITTrendsExplorer({
             className="pl-10"
           />
         </div>
+        <Button 
+          onClick={handleRefresh} 
+          disabled={isLoading}
+          variant="outline"
+          className="flex items-center gap-2"
+        >
+          <RotateCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
       </div>
 
       {/* Category Tabs */}
