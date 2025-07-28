@@ -142,13 +142,27 @@ export default function CandidateMatchingPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Refresh candidates to update existing placement status
-        await fetchCandidates();
+        // Update local state to show placement status without refetching
+        setAllCandidates(prevCandidates => 
+          prevCandidates.map(candidate => 
+            candidate.id === profiler.id 
+              ? { ...candidate, existing_placement: data }
+              : candidate
+          )
+        );
+        
+        setFilteredCandidates(prevCandidates => 
+          prevCandidates.map(candidate => 
+            candidate.id === profiler.id 
+              ? { ...candidate, existing_placement: data }
+              : candidate
+          )
+        );
+        
+        // Close dialogs
         setSelectedCandidate(null);
         setPlacementNotes('');
-        
-        // Redirect to tickets page with "With Placements" filter
-        router.push('/delivery-manager/tickets?placementFilter=with_placements');
+        setShowCandidateDetails(false);
       } else {
         alert(data.error || 'Failed to create placement');
       }
@@ -336,10 +350,12 @@ export default function CandidateMatchingPage() {
               transition={{ delay: index * 0.1 }}
             >
               <Card 
-                className="hover:shadow-lg transition-shadow cursor-pointer hover:border-purple-300"
-                onClick={() => openCandidateDetails(candidate)}
+                className="hover:shadow-lg transition-shadow hover:border-purple-300"
               >
-                <CardHeader>
+                <CardHeader 
+                  className="cursor-pointer"
+                  onClick={() => openCandidateDetails(candidate)}
+                >
                   <div className="flex justify-between items-start">
                     <div>
                       <CardTitle className="text-lg mb-1">
@@ -371,6 +387,11 @@ export default function CandidateMatchingPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
+                    {/* Clickable content area */}
+                    <div 
+                      className="cursor-pointer space-y-4" 
+                      onClick={() => openCandidateDetails(candidate)}
+                    >
                     {/* Key Details */}
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
@@ -502,17 +523,15 @@ export default function CandidateMatchingPage() {
                         </div>
                       </div>
                     </div>
+                    </div>
 
                     {/* Actions */}
-                    <div className="flex space-x-2 pt-2">
+                    <div className="flex space-x-2 pt-2" onClick={(e) => e.stopPropagation()}>
                       {candidate.linkedin_url && (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            window.open(candidate.linkedin_url, '_blank');
-                          }}
+                          onClick={() => window.open(candidate.linkedin_url, '_blank')}
                           className="flex-1"
                         >
                           <ExternalLink className="h-4 w-4 mr-1" />
@@ -524,10 +543,7 @@ export default function CandidateMatchingPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            window.open(`tel:${candidate.phone}`, '_self');
-                          }}
+                          onClick={() => window.open(`tel:${candidate.phone}`, '_self')}
                           className="flex-1"
                         >
                           <Phone className="h-4 w-4 mr-1" />
@@ -538,10 +554,7 @@ export default function CandidateMatchingPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          window.open(`mailto:${candidate.email}`, '_self');
-                        }}
+                        onClick={() => window.open(`mailto:${candidate.email}`, '_self')}
                         className="flex-1"
                       >
                         <Mail className="h-4 w-4 mr-1" />
@@ -938,10 +951,13 @@ export default function CandidateMatchingPage() {
                 ) : (
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button 
-                        className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
-                        onClick={() => setSelectedCandidate(selectedCandidate)}
-                      >
+                                              <Button 
+                          className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCandidate(selectedCandidate);
+                          }}
+                        >
                         <Plus className="h-4 w-4" />
                         Propose Candidate
                       </Button>
