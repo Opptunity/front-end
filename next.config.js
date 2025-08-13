@@ -42,6 +42,12 @@ const nextConfig = {
       os: false,
     };
 
+    // Only exclude nodemailer from client bundles
+    if (!isServer) {
+      config.externals = config.externals || [];
+      config.externals.push('nodemailer');
+    }
+
     // Add polyfill plugins
     if (!isServer) {
       const webpack = require('webpack');

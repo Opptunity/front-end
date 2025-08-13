@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
     // Check if ticket exists
     const { data: ticket, error: ticketError } = await supabase
       .from('tickets')
-      .select('id, required_skills, preferred_skills')
+      .select('id, required_skills, preferred_skills, position_title, company_name')
       .eq('id', ticket_id)
       .single();
 
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
     // Check if profiler exists
     const { data: profiler, error: profilerError } = await supabase
       .from('profilers')
-      .select('id, skills')
+      .select('id, skills, email, first_name, last_name')
       .eq('id', profiler_id)
       .single();
 
@@ -189,6 +189,49 @@ export async function POST(request: NextRequest) {
         changed_by: assigned_by,
         notes: 'Placement created'
       });
+
+    // Send notification email to the selected profiler
+    try {
+      const candidateName = `${profiler.first_name || ''} ${profiler.last_name || ''}`.trim();
+      const roleTitle = ticket.position_title || 'a new opportunity';
+      const companyName = ticket.company_name || '';
+      const subject = `You have been selected for ${roleTitle}${companyName ? ' at ' + companyName : ''}`;
+      const plainText = `Hello ${candidateName || 'there'},\n\nYou have been selected by our Delivery Manager for ${roleTitle}${companyName ? ' at ' + companyName : ''}.\n\nWe will contact you shortly with next steps.\n\nBest regards,\nOpptunity Delivery Team`;
+      const html = `
+        <p>Hello ${candidateName || 'there'},</p>
+        <p>You have been selected by our Delivery Manager for <strong>${roleTitle}</strong>${companyName ? ' at <strong>' + companyName + '</strong>' : ''}.</p>
+        <p>We will contact you shortly with next steps.</p>
+        <p>Best regards,<br/>Opptunity Delivery Team</p>
+      `;
+
+             if (profiler.email) {
+        // Send email notification via internal API call
+        try {
+          const emailResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              to: profiler.email,
+              subject,
+              html,
+              text: plainText
+            }),
+          });
+
+          if (!emailResponse.ok) {
+            console.error('Failed to send email notification');
+          }
+        } catch (emailError) {
+          console.error('Error calling email API:', emailError);
+        }
+      } else {
+        console.warn('Profiler email not found; skipping notification email.');
+      }
+    } catch (emailError) {
+      console.error('Failed to send notification email:', emailError);
+    }
 
     return NextResponse.json({ placement: data }, { status: 201 });
 

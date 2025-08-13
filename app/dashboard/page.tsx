@@ -9,6 +9,7 @@ import AnimatedButton from "@/components/animations/animated-button"
 import { useAuth } from '@workos-inc/authkit-nextjs/components'
 import { useBackendAuth } from '@/contexts/backend-auth-context'
 import ProtectedRoute from "@/components/protected-route"
+import TestEmail from "@/components/test-email"
 
 // Define the Assessment interface
 interface Assessment {
@@ -832,6 +833,14 @@ export default function DashboardPage() {
               </div>
             </div>
             */}
+            
+            {/* Test Email Section */}
+            <div className="mt-8">
+              <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                <span className="mr-2">📧</span> Test Email System
+              </h3>
+              <TestEmail />
+            </div>
           </motion.div>
         </main>
       </div>
