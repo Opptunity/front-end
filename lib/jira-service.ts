@@ -129,8 +129,9 @@ function getJiraHeaders(config: JiraConfig): HeadersInit {
   
   return {
     'Authorization': `Basic ${auth}`,
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
+    'Accept': 'application/json; charset=UTF-8',
+    'Content-Type': 'application/json; charset=UTF-8',
+    'X-ExperimentalApi': 'opt-in'
   }
 }
 
@@ -205,27 +206,140 @@ export async function fetchJiraIssues(projectKey: string, options: {
     const finalJql = jql || defaultJql
 
     console.log(`Fetching JIRA issues for project ${projectKey}`)
-    
-    const searchParams = new URLSearchParams({
-      jql: finalJql,
-      maxResults: maxResults.toString(),
-      startAt: startAt.toString(),
-      fields: 'id,key,summary,description,status,priority,assignee,reporter,created,updated,resolutiondate,duedate,issuetype,project,labels,components'
-    })
 
-    const response = await fetch(`${config.baseUrl}/rest/api/3/search?${searchParams}`, {
-      headers,
-    })
+    // Prefer new POST /search/jql endpoint per Atlassian CHANGE-2046
+    // This endpoint expects a bulk format with a queries array
+    const commonFields = [
+      'id',
+      'key',
+      'summary',
+      'description',
+      'status',
+      'priority',
+      'assignee',
+      'reporter',
+      'created',
+      'updated',
+      'resolutiondate',
+      'duedate',
+      'issuetype',
+      'project',
+      'labels',
+      'components'
+    ]
 
-    if (!response.ok) {
-      throw new Error(`JIRA API error: ${response.status} ${response.statusText}`)
+    const jqlBulkBody = {
+      queries: [
+        {
+          jql: finalJql,
+          startAt,
+          maxResults,
+          fields: commonFields
+        }
+      ]
+    }
+
+    // Try multiple shapes for the new /search/jql endpoint
+    const jqlPayloadCandidates: any[] = [
+      // Official bulk shape (most likely)
+      jqlBulkBody,
+      // Bulk with top-level fields include object
+      { queries: [{ jql: finalJql, startAt, maxResults }], fields: { include: commonFields } },
+      // Minimal bulk
+      { queries: [{ jql: finalJql }] },
+      // Single-query shapes that some tenants accept
+      { jql: finalJql, startAt, maxResults, fields: commonFields },
+      { query: finalJql, startAt, maxResults, fields: commonFields }
+    ]
+
+    let response: Response | null = null
+    let lastBodyText = ''
+    for (const candidate of jqlPayloadCandidates) {
+      const res = await fetch(`${config.baseUrl}/rest/api/3/search/jql`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(candidate)
+      })
+      if (res.ok) {
+        response = res
+        break
+      }
+      // Stop trying alternatives if endpoint itself is missing/deprecated
+      if (res.status === 404 || res.status === 410) {
+        response = res
+        break
+      }
+      lastBodyText = await res.text().catch(() => '')
+      console.warn('Variant /search/jql payload failed:', { status: res.status, body: lastBodyText })
+    }
+
+    // Fall back to classic POST /search if endpoint is missing OR all variants returned 400
+    if (!response || response.status === 404 || response.status === 410 || response.status === 400) {
+      console.warn('Falling back to classic /rest/api/3/search...')
+      const searchBody = { jql: finalJql, startAt, maxResults, fields: commonFields }
+      response = await fetch(`${config.baseUrl}/rest/api/3/search`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(searchBody)
+      })
+    }
+
+    if (!response || !response.ok) {
+      // As a final fallback, try the Agile API (boards → issues) using GET
+      console.warn('Falling back to Agile API (board issues) ...')
+      try {
+        // 1) Find a board for this project
+        const boardsRes = await fetch(`${config.baseUrl}/rest/agile/1.0/board?projectKeyOrId=${encodeURIComponent(projectKey)}`, { headers })
+        if (!boardsRes.ok) {
+          const body = await boardsRes.text().catch(() => '')
+          throw new Error(`Agile boards fetch failed: ${boardsRes.status} ${boardsRes.statusText} :: ${body}`)
+        }
+        const boardsData = await boardsRes.json()
+        const board = (boardsData.values || [])[0]
+        if (!board) {
+          throw new Error('No agile boards found for project')
+        }
+
+        // 2) Fetch issues from the board
+        const params = new URLSearchParams({
+          maxResults: String(maxResults),
+          startAt: String(startAt)
+        })
+        if (finalJql) params.set('jql', finalJql)
+        const issuesRes = await fetch(`${config.baseUrl}/rest/agile/1.0/board/${board.id}/issue?${params.toString()}`, { headers })
+        if (!issuesRes.ok) {
+          const body = await issuesRes.text().catch(() => '')
+          throw new Error(`Agile board issues fetch failed: ${issuesRes.status} ${issuesRes.statusText} :: ${body}`)
+        }
+        const issuesData = await issuesRes.json()
+        // Normalize to JiraIssue[] shape as best as possible
+        const agileIssues = (issuesData.issues || []) as JiraIssue[]
+        const result = { issues: agileIssues, total: typeof issuesData.total === 'number' ? issuesData.total : agileIssues.length }
+        // Cache and return
+        jiraCache.set(cacheKey, { data: result, timestamp: Date.now() })
+        return result
+      } catch (agileErr) {
+        const bodyText = response ? await response.text().catch(() => lastBodyText) : lastBodyText
+        const status = response ? response.status : 'no-response'
+        const statusText = response ? response.statusText : 'fetch-error'
+        console.error('Agile API fallback failed:', agileErr)
+        throw new Error(`JIRA API error: ${status} ${statusText} :: ${bodyText}`)
+      }
     }
 
     const data = await response.json()
-    const result = {
-      issues: data.issues as JiraIssue[],
-      total: data.total
+    // Support both legacy and new bulk JQL shapes
+    let issues: JiraIssue[] = []
+    let total: number = 0
+    if (Array.isArray(data.results)) {
+      const first = data.results[0] || {}
+      issues = (first.issues || []) as JiraIssue[]
+      total = typeof first.total === 'number' ? first.total : issues.length
+    } else {
+      issues = (data.issues || []) as JiraIssue[]
+      total = typeof data.total === 'number' ? data.total : issues.length
     }
+    const result = { issues, total }
 
     // Store in cache
     jiraCache.set(cacheKey, { data: result, timestamp: Date.now() })
