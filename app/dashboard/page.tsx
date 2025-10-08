@@ -341,7 +341,7 @@ export default function DashboardPage() {
                       </div>
                       
                       <div className="space-y-3">
-                        <Link href="/create-ticket" className="block">
+                        <Link href="/engineer-ranking" className="block">
                           <button className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center">
                             <span>Create New Ticket</span>
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2">
